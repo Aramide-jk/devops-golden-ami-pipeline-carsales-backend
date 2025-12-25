@@ -1,74 +1,92 @@
 version: 0.2
 
-# Stage 1: Build and Push Docker Image
+# Stage 2: Build Golden AMI with Packer
 
 env:
   variables:
     AWS_DEFAULT_REGION: "us-east-1"
     AWS_ACCOUNT_ID: "734649603753"
-    IMAGE_REPO_NAME: "backend"
+    PROJECT_NAME: "backend"
+    PACKER_VERSION: "1.10.0"
+    VPC_ID: "vpc-xxxxxxxxx"  # REPLACE WITH YOUR VPC ID
+    SUBNET_ID: "subnet-xxxxxxxxx"  # REPLACE WITH YOUR PUBLIC SUBNET ID
+    INSTANCE_PROFILE_NAME: "backend-Packer-Instance-Profile"  # From CloudFormation
   
 phases:
   pre_build:
     commands:
-      - echo "Logging in to Amazon ECR..."
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - echo "Installing Packer..."
+      - wget https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip
+      - unzip packer_${PACKER_VERSION}_linux_amd64.zip
+      - chmod +x packer
+      - ./packer version
       
-      - echo "Setting up build variables..."
-      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
-      - IMAGE_TAG=${COMMIT_HASH:=latest}
-      - BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+      - echo "Reading build metadata from previous stage..."
+      - cat build-metadata.json
+      - export IMAGE_TAG=$(jq -r '.imageTag' build-metadata.json)
+      - export COMMIT_HASH=$(jq -r '.commitHash' build-metadata.json)
+      - export ECR_REPO=$(jq -r '.repository' build-metadata.json)
       
-      - echo "Build variables:"
-      - echo "  COMMIT_HASH=${COMMIT_HASH}"
+      - echo "Variables for Packer:"
       - echo "  IMAGE_TAG=${IMAGE_TAG}"
-      - echo "  BUILD_DATE=${BUILD_DATE}"
+      - echo "  COMMIT_HASH=${COMMIT_HASH}"
+      - echo "  ECR_REPO=${ECR_REPO}"
+      
+      - cd infrastructure/packer
   
   build:
     commands:
-      - echo "Build started on $(date)"
-      - echo "Building Docker image..."
+      - echo "Initializing Packer..."
+      - ../../packer init backend-ami.pkr.hcl
       
-      - docker build \
-          --build-arg BUILD_DATE=${BUILD_DATE} \
-          --build-arg VCS_REF=${COMMIT_HASH} \
-          --build-arg VERSION=${IMAGE_TAG} \
-          -t $IMAGE_REPO_NAME:$IMAGE_TAG \
-          -t $IMAGE_REPO_NAME:latest \
-          .
+      - echo "Validating Packer template..."
+      - ../../packer validate \
+          -var "aws_region=${AWS_DEFAULT_REGION}" \
+          -var "aws_account_id=${AWS_ACCOUNT_ID}" \
+          -var "project_name=${PROJECT_NAME}" \
+          -var "ecr_repo=${ECR_REPO}" \
+          -var "docker_image_tag=${IMAGE_TAG}" \
+          -var "instance_profile_name=${INSTANCE_PROFILE_NAME}" \
+          -var "vpc_id=${VPC_ID}" \
+          -var "subnet_id=${SUBNET_ID}" \
+          backend-ami.pkr.hcl
       
-      - echo "Tagging image for ECR..."
-      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
-      - docker tag $IMAGE_REPO_NAME:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest
+      - echo "Building AMI with Packer..."
+      - ../../packer build \
+          -var "aws_region=${AWS_DEFAULT_REGION}" \
+          -var "aws_account_id=${AWS_ACCOUNT_ID}" \
+          -var "project_name=${PROJECT_NAME}" \
+          -var "ecr_repo=${ECR_REPO}" \
+          -var "docker_image_tag=${IMAGE_TAG}" \
+          -var "instance_profile_name=${INSTANCE_PROFILE_NAME}" \
+          -var "vpc_id=${VPC_ID}" \
+          -var "subnet_id=${SUBNET_ID}" \
+          backend-ami.pkr.hcl
   
   post_build:
     commands:
-      - echo "Build completed on $(date)"
-      - echo "Pushing Docker images to ECR..."
+      - echo "Extracting AMI ID from Packer manifest..."
+      - AMI_ID=$(jq -r '.builds[0].artifact_id' packer-manifest.json | cut -d':' -f2)
+      - echo "AMI ID: ${AMI_ID}"
       
-      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
-      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest
-      
-      - echo "Writing build metadata..."
+      - echo "Writing AMI metadata..."
+      - cd ../..
       - |
-        cat > build-metadata.json <<EOF
+        cat > ami-metadata.json <<EOF
         {
-          "imageUri": "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest",
-          "imageTag": "$IMAGE_TAG",
-          "commitHash": "$COMMIT_HASH",
-          "buildDate": "$BUILD_DATE",
-          "region": "$AWS_DEFAULT_REGION",
-          "accountId": "$AWS_ACCOUNT_ID",
-          "repository": "$IMAGE_REPO_NAME"
+          "amiId": "${AMI_ID}",
+          "imageTag": "${IMAGE_TAG}",
+          "commitHash": "${COMMIT_HASH}",
+          "buildDate": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')",
+          "region": "${AWS_DEFAULT_REGION}",
+          "projectName": "${PROJECT_NAME}"
         }
         EOF
-      - cat build-metadata.json
+      - cat ami-metadata.json
       
-      - echo "Docker image pushed successfully!"
+      - echo "Golden AMI built successfully!"
 
 artifacts:
   files:
-    - build-metadata.json
-    - infrastructure/packer/**/*
-    - infrastructure/buildspecs/buildspec-ami.yml
-  name: DockerBuildArtifact
+    - ami-metadata.json
+  name: AMIBuildArtifact
