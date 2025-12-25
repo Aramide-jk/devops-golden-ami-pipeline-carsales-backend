@@ -1,0 +1,74 @@
+version: 0.2
+
+# Stage 1: Build and Push Docker Image
+
+env:
+  variables:
+    AWS_DEFAULT_REGION: "us-east-1"
+    AWS_ACCOUNT_ID: "734649603753"
+    IMAGE_REPO_NAME: "backend"
+  
+phases:
+  pre_build:
+    commands:
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      
+      - echo "Setting up build variables..."
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
+      - BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+      
+      - echo "Build variables:"
+      - echo "  COMMIT_HASH=${COMMIT_HASH}"
+      - echo "  IMAGE_TAG=${IMAGE_TAG}"
+      - echo "  BUILD_DATE=${BUILD_DATE}"
+  
+  build:
+    commands:
+      - echo "Build started on $(date)"
+      - echo "Building Docker image..."
+      
+      - docker build \
+          --build-arg BUILD_DATE=${BUILD_DATE} \
+          --build-arg VCS_REF=${COMMIT_HASH} \
+          --build-arg VERSION=${IMAGE_TAG} \
+          -t $IMAGE_REPO_NAME:$IMAGE_TAG \
+          -t $IMAGE_REPO_NAME:latest \
+          .
+      
+      - echo "Tagging image for ECR..."
+      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+      - docker tag $IMAGE_REPO_NAME:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest
+  
+  post_build:
+    commands:
+      - echo "Build completed on $(date)"
+      - echo "Pushing Docker images to ECR..."
+      
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest
+      
+      - echo "Writing build metadata..."
+      - |
+        cat > build-metadata.json <<EOF
+        {
+          "imageUri": "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest",
+          "imageTag": "$IMAGE_TAG",
+          "commitHash": "$COMMIT_HASH",
+          "buildDate": "$BUILD_DATE",
+          "region": "$AWS_DEFAULT_REGION",
+          "accountId": "$AWS_ACCOUNT_ID",
+          "repository": "$IMAGE_REPO_NAME"
+        }
+        EOF
+      - cat build-metadata.json
+      
+      - echo "Docker image pushed successfully!"
+
+artifacts:
+  files:
+    - build-metadata.json
+    - infrastructure/packer/**/*
+    - infrastructure/buildspecs/buildspec-ami.yml
+  name: DockerBuildArtifact
