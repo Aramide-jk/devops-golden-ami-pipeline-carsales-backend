@@ -1,6 +1,3 @@
-hcl
-# Packer HCL2 Configuration for Golden AMI
-
 packer {
   required_plugins {
     amazon = {
