@@ -1,16 +1,14 @@
 version: 0.2
 
-# Stage 2: Build Golden AMI with Packer
-
 env:
   variables:
     AWS_DEFAULT_REGION: "us-east-1"
     AWS_ACCOUNT_ID: "734649603753"
     PROJECT_NAME: "backend"
     PACKER_VERSION: "1.10.0"
-    VPC_ID: "vpc-xxxxxxxxx"  # REPLACE WITH YOUR VPC ID
-    SUBNET_ID: "subnet-xxxxxxxxx"  # REPLACE WITH YOUR PUBLIC SUBNET ID
-    INSTANCE_PROFILE_NAME: "backend-Packer-Instance-Profile"  # From CloudFormation
+    VPC_ID: "vpc-0733db0399d40f55d"
+    SUBNET_ID: "subnet-06af0e62b9a0c3785"
+    INSTANCE_PROFILE_NAME: "backend-Packer-Instance-Profile"
   
 phases:
   pre_build:
@@ -31,6 +29,8 @@ phases:
       - echo "  IMAGE_TAG=${IMAGE_TAG}"
       - echo "  COMMIT_HASH=${COMMIT_HASH}"
       - echo "  ECR_REPO=${ECR_REPO}"
+      - echo "  VPC_ID=${VPC_ID}"
+      - echo "  SUBNET_ID=${SUBNET_ID}"
       
       - cd infrastructure/packer
   
