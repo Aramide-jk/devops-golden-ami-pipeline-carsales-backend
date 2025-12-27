@@ -3,14 +3,18 @@ version: 0.2
 phases:
   install:
     commands:
-      - curl -fsSL https://releases.hashicorp.com/packer/1.9.4/packer_1.9.4_linux_amd64.zip -o packer.zip
-      - unzip packer.zip
-      - mv packer /usr/local/bin/
+      - echo "Installing dependencies..."
+      - yum install -y unzip curl
+      - echo "Installing Packer..."
+      - curl -fsSL https://releases.hashicorp.com/packer/1.9.4/packer_1.9.4_linux_amd64.zip -o /tmp/packer.zip
+      - unzip /tmp/packer.zip -d /usr/local/bin
+      - chmod +x /usr/local/bin/packer
+      - packer version
+
   build:
     commands:
+      - echo "Changing to packer directory..."
       - cd infrastructure/packer
+      - ls -la
       - packer init .
-      - packer build .
-artifacts:
-  files:
-    - packer-manifest.json
+      - packer build backend-ami.pkr.hcl
