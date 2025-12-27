@@ -7,6 +7,9 @@ env:
 phases:
   pre_build:
     commands:
+      - echo "### PIPELINE IS USING THE CORRECT BUILDSPEC ###"
+      - env | sort
+      - exit 1
       - echo "Logging in to Amazon ECR..."
       - echo "AWS_REGION=$AWS_REGION"
       - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
