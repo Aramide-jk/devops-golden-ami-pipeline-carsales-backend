@@ -1,38 +1,39 @@
 # ==========================
-# Stage 1: Build Stage
+# Stage 1: Build
 # ==========================
-FROM public.ecr.aws/docker/library/node:20-alpine AS build
+FROM node:20-alpine AS build
 
-# Set working directory
 WORKDIR /app
 
-# Install build dependencies (all, including dev)
-COPY package*.json ./
+# Install dependencies first (better caching)
+COPY package.json package-lock.json ./
 RUN npm ci
 
-# Copy source code
+# Copy source and build
 COPY . .
-
-# Build project
 RUN npm run build
 
+
 # ==========================
-# Stage 2: Production Stage
+# Stage 2: Runtime
 # ==========================
-FROM public.ecr.aws/docker/library/node:20-alpine AS production
+FROM node:20-alpine AS runtime
 
 WORKDIR /app
 
-# Install only production dependencies with caching for faster rebuilds
-COPY package*.json ./
-RUN npm ci --omit=dev
+# Set production env early
+ENV NODE_ENV=production
 
-# Copy compiled files from build stage
+# Install only production dependencies
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+# Copy built artifacts only
 COPY --from=build /app/dist ./dist
 
-# Set environment
-ENV NODE_ENV=production
+# Security hardening (non-root user)
+USER node
+
 EXPOSE 8000
 
-# Run the app
 CMD ["node", "dist/server.js"]
