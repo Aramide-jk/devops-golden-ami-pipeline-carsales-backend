@@ -4,7 +4,7 @@ env:
   variables:
     AWS_DEFAULT_REGION: "us-east-1"
     AWS_ACCOUNT_ID: "734649603753"
-    IMAGE_REPO_NAME: "backend-docker-build"
+    IMAGE_REPO_NAME: "backend"
 
 phases:
   pre_build:
@@ -13,13 +13,11 @@ phases:
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
       - IMAGE_TAG=${COMMIT_HASH:=latest}
-      - echo "Build variables set:"
-      - echo "  AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}"
-      - echo "  AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID}"
-      - echo "  IMAGE_REPO_NAME=${IMAGE_REPO_NAME}"
+      - BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+      - echo "Build variables:"
       - echo "  COMMIT_HASH=${COMMIT_HASH}"
       - echo "  IMAGE_TAG=${IMAGE_TAG}"
-      # Make scripts executable
+      - echo "  BUILD_DATE=${BUILD_DATE}"
       - chmod +x scripts/*.sh || true
       - echo "Made deployment scripts executable"
       
@@ -37,12 +35,15 @@ phases:
       - echo Pushing the Docker images...
       - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
       - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest
-      - echo Writing image definitions file for CodeDeploy...
-      - printf '{"ImageURI":"%s"}' $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest > imageDetail.json
+      - echo Writing build metadata...
+      - echo "{\"imageUri\":\"$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest\",\"imageTag\":\"$IMAGE_TAG\",\"commitHash\":\"$COMMIT_HASH\",\"buildDate\":\"$BUILD_DATE\",\"region\":\"$AWS_DEFAULT_REGION\",\"accountId\":\"$AWS_ACCOUNT_ID\",\"repository\":\"$IMAGE_REPO_NAME\"}" > build-metadata.json
+      - cat build-metadata.json
+      - echo Docker image pushed successfully!
 
 artifacts:
   files:
+    - build-metadata.json
+    - infrastructure/packer/**/*
     - appspec.yml
     - scripts/**/*
-    - imageDetail.json
-    - build-metadata.json
+  name: DockerBuildArtifact
