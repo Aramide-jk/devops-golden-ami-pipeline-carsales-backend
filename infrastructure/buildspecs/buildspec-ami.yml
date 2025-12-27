@@ -1,48 +1,11 @@
 version: 0.2
 
-<<<<<<< HEAD
-=======
-env:
-  variables:
-    AWS_DEFAULT_REGION: "us-east-1"
-    AWS_ACCOUNT_ID: "734649603753"
-    PROJECT_NAME: "backend"
-    PACKER_VERSION: "1.10.0"
-    VPC_ID: "vpc-0733db0399d40f55d"
-    SUBNET_ID: "subnet-06af0e62b9a0c3785"
-    INSTANCE_PROFILE_NAME: "backend-Packer-Instance-Profile"
-  
->>>>>>> 8c7ef24418cf1efd13f9e6fdec44023c0a8f1188
 phases:
   install:
     commands:
-<<<<<<< HEAD
       - curl -fsSL https://releases.hashicorp.com/packer/1.9.4/packer_1.9.4_linux_amd64.zip -o packer.zip
       - unzip packer.zip
       - mv packer /usr/local/bin/
-=======
-      - echo "Installing Packer..."
-      - wget https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip
-      - unzip packer_${PACKER_VERSION}_linux_amd64.zip
-      - chmod +x packer
-      - ./packer version
-      
-      - echo "Reading build metadata from previous stage..."
-      - cat build-metadata.json
-      - export IMAGE_TAG=$(jq -r '.imageTag' build-metadata.json)
-      - export COMMIT_HASH=$(jq -r '.commitHash' build-metadata.json)
-      - export ECR_REPO=$(jq -r '.repository' build-metadata.json)
-      
-      - echo "Variables for Packer:"
-      - echo "  IMAGE_TAG=${IMAGE_TAG}"
-      - echo "  COMMIT_HASH=${COMMIT_HASH}"
-      - echo "  ECR_REPO=${ECR_REPO}"
-      - echo "  VPC_ID=${VPC_ID}"
-      - echo "  SUBNET_ID=${SUBNET_ID}"
-      
-      - cd infrastructure/packer
-  
->>>>>>> 8c7ef24418cf1efd13f9e6fdec44023c0a8f1188
   build:
     commands:
       - cd infrastructure/packer
