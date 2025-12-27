@@ -9,7 +9,7 @@ env:
 phases:
   pre_build:
     commands:
-      - echo "### PIPELINE IS USING THE CORRECT BUILDSPEC ###"
+      - echo "PIPELINE IS USING THE CORRECT BUILDSPEC"
       - env | sort
       - echo "Logging in to Amazon ECR..."
       - echo "AWS_REGION=$AWS_REGION"
