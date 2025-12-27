@@ -1,47 +1,19 @@
 version: 0.2
 
-env:
-  variables:
-    AWS_DEFAULT_REGION: "us-east-1"
-    AWS_ACCOUNT_ID: "734649603753"
-    IMAGE_REPO_NAME: "backend-docker-build"
-
 phases:
   pre_build:
     commands:
-      - echo Logging in to Amazon ECR...
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
-      - IMAGE_TAG=${COMMIT_HASH:=latest}
-      - echo "Build variables set:"
-      - echo "  AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}"
-      - echo "  AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID}"
-      - echo "  IMAGE_REPO_NAME=${IMAGE_REPO_NAME}"
-      - echo "  COMMIT_HASH=${COMMIT_HASH}"
-      - echo "  IMAGE_TAG=${IMAGE_TAG}"
-      # Make scripts executable
-      - chmod +x scripts/*.sh || true
-      - echo "Made deployment scripts executable"
-      
+      - echo "Logging in to Amazon ECR..."
+      - aws --version
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_URI
+
   build:
     commands:
-      - echo Build started on `date`
-      - echo Building the Docker image...
-      - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
-      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
-      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest
-      
+      - echo "Building Docker image..."
+      - docker build -t backend:latest .
+      - docker tag backend:latest $ECR_URI:latest
+
   post_build:
     commands:
-      - echo Build completed on `date`
-      - echo Pushing the Docker images...
-      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
-      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest
-      - echo Writing image definitions file for CodeDeploy...
-      - printf '{"ImageURI":"%s"}' $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest > imageDetail.json
-
-artifacts:
-  files:
-    - appspec.yml
-    - scripts/**/*
-    - imageDetail.json
+      - echo "Pushing Docker image to ECR..."
+      - docker push $ECR_URI:latest
