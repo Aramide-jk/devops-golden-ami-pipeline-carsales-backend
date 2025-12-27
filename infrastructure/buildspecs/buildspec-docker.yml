@@ -1,19 +1,39 @@
 version: 0.2
 
+env:
+  variables:
+    IMAGE_NAME: backend-docker-build
+    IMAGE_TAG: latest
+
 phases:
+  install:
+    commands:
+      - echo "Installing AWS CLI (already present in managed image)"
+      - aws --version
+      - docker --version
+
   pre_build:
     commands:
       - echo "Logging in to Amazon ECR..."
-      - aws --version
-      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_URI
+      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - REGION=$(aws configure get region)
+      - ECR_URI=${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE_NAME}
+      - aws ecr describe-repositories --repository-names ${IMAGE_NAME} || aws ecr create-repository --repository-name ${IMAGE_NAME}
+      - aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
 
   build:
     commands:
       - echo "Building Docker image..."
-      - docker build -t backend:latest .
-      - docker tag backend:latest $ECR_URI:latest
+      - docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+      - docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${ECR_URI}:${IMAGE_TAG}
 
   post_build:
     commands:
-      - echo "Pushing Docker image to ECR..."
-      - docker push $ECR_URI:latest
+      - echo "Pushing image to ECR..."
+      - docker push ${ECR_URI}:${IMAGE_TAG}
+      - echo "Build completed successfully"
+
+artifacts:
+  files:
+    - '**/*'
+  discard-paths: yes
