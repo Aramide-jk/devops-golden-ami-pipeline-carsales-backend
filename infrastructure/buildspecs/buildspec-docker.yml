@@ -4,6 +4,8 @@ env:
   variables:
     IMAGE_NAME: backend-docker-build
     IMAGE_TAG: latest
+    ACCOUNT_ID: 734649603753
+    REGION: us-east-1
 
 phases:
   install:
