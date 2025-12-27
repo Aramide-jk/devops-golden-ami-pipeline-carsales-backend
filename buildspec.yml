@@ -1,5 +1,11 @@
 version: 0.2
 
+env:
+  variables:
+    AWS_DEFAULT_REGION: "us-east-1"
+    AWS_ACCOUNT_ID: "734649603753"
+    IMAGE_REPO_NAME: "backend-docker-build"
+
 phases:
   pre_build:
     commands:
@@ -7,8 +13,12 @@ phases:
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
       - IMAGE_TAG=${COMMIT_HASH:=latest}
-      # Make scripts executable
-      - chmod +x scripts/*.sh
+      - BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+      - echo "Build variables:"
+      - echo "  COMMIT_HASH=${COMMIT_HASH}"
+      - echo "  IMAGE_TAG=${IMAGE_TAG}"
+      - echo "  BUILD_DATE=${BUILD_DATE}"
+      - chmod +x scripts/*.sh || true
       - echo "Made deployment scripts executable"
       
   build:
@@ -25,11 +35,15 @@ phases:
       - echo Pushing the Docker images...
       - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
       - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest
-      - echo Writing image definitions file for CodeDeploy...
-      - printf '{"ImageURI":"%s"}' $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest > imageDetail.json
+      - echo Writing build metadata...
+      - echo "{\"imageUri\":\"$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest\",\"imageTag\":\"$IMAGE_TAG\",\"commitHash\":\"$COMMIT_HASH\",\"buildDate\":\"$BUILD_DATE\",\"region\":\"$AWS_DEFAULT_REGION\",\"accountId\":\"$AWS_ACCOUNT_ID\",\"repository\":\"$IMAGE_REPO_NAME\"}" > build-metadata.json
+      - cat build-metadata.json
+      - echo Docker image pushed successfully!
 
 artifacts:
   files:
+    - build-metadata.json
+    - infrastructure/packer/**/*
     - appspec.yml
     - scripts/**/*
-    - imageDetail.json
+  name: DockerBuildArtifact
