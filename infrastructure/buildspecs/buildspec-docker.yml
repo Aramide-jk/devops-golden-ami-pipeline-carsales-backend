@@ -46,6 +46,3 @@ artifacts:
     - scripts/**/*
     - imageDetail.json
     - build-metadata.json
-    - infrastructure/buildspecs/buildspec-ami.yml
-    - infrastructure/packer/**/*
-  name: DockerBuildArtifact
