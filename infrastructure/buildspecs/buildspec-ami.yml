@@ -3,6 +3,7 @@ version: 0.2
 phases:
   build:
     commands:
+      - export PATH=$PATH:/usr/local/bin
       - echo "Using custom AL2023 CodeBuild image"
       - packer version
       - cd infrastructure/packer
