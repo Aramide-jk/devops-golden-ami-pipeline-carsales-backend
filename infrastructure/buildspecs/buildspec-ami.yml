@@ -1,92 +1,16 @@
 version: 0.2
 
-# Stage 2: Build Golden AMI with Packer
-
-env:
-  variables:
-    AWS_DEFAULT_REGION: "us-east-1"
-    AWS_ACCOUNT_ID: "734649603753"
-    PROJECT_NAME: "backend"
-    PACKER_VERSION: "1.10.0"
-    VPC_ID: "vpc-xxxxxxxxx"  # REPLACE WITH YOUR VPC ID
-    SUBNET_ID: "subnet-xxxxxxxxx"  # REPLACE WITH YOUR PUBLIC SUBNET ID
-    INSTANCE_PROFILE_NAME: "backend-Packer-Instance-Profile"  # From CloudFormation
-  
 phases:
-  pre_build:
+  install:
     commands:
-      - echo "Installing Packer..."
-      - wget https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip
-      - unzip packer_${PACKER_VERSION}_linux_amd64.zip
-      - chmod +x packer
-      - ./packer version
-      
-      - echo "Reading build metadata from previous stage..."
-      - cat build-metadata.json
-      - export IMAGE_TAG=$(jq -r '.imageTag' build-metadata.json)
-      - export COMMIT_HASH=$(jq -r '.commitHash' build-metadata.json)
-      - export ECR_REPO=$(jq -r '.repository' build-metadata.json)
-      
-      - echo "Variables for Packer:"
-      - echo "  IMAGE_TAG=${IMAGE_TAG}"
-      - echo "  COMMIT_HASH=${COMMIT_HASH}"
-      - echo "  ECR_REPO=${ECR_REPO}"
-      
-      - cd infrastructure/packer
-  
+      - curl -fsSL https://releases.hashicorp.com/packer/1.9.4/packer_1.9.4_linux_amd64.zip -o packer.zip
+      - unzip packer.zip
+      - mv packer /usr/local/bin/
   build:
     commands:
-      - echo "Initializing Packer..."
-      - ../../packer init backend-ami.pkr.hcl
-      
-      - echo "Validating Packer template..."
-      - ../../packer validate \
-          -var "aws_region=${AWS_DEFAULT_REGION}" \
-          -var "aws_account_id=${AWS_ACCOUNT_ID}" \
-          -var "project_name=${PROJECT_NAME}" \
-          -var "ecr_repo=${ECR_REPO}" \
-          -var "docker_image_tag=${IMAGE_TAG}" \
-          -var "instance_profile_name=${INSTANCE_PROFILE_NAME}" \
-          -var "vpc_id=${VPC_ID}" \
-          -var "subnet_id=${SUBNET_ID}" \
-          backend-ami.pkr.hcl
-      
-      - echo "Building AMI with Packer..."
-      - ../../packer build \
-          -var "aws_region=${AWS_DEFAULT_REGION}" \
-          -var "aws_account_id=${AWS_ACCOUNT_ID}" \
-          -var "project_name=${PROJECT_NAME}" \
-          -var "ecr_repo=${ECR_REPO}" \
-          -var "docker_image_tag=${IMAGE_TAG}" \
-          -var "instance_profile_name=${INSTANCE_PROFILE_NAME}" \
-          -var "vpc_id=${VPC_ID}" \
-          -var "subnet_id=${SUBNET_ID}" \
-          backend-ami.pkr.hcl
-  
-  post_build:
-    commands:
-      - echo "Extracting AMI ID from Packer manifest..."
-      - AMI_ID=$(jq -r '.builds[0].artifact_id' packer-manifest.json | cut -d':' -f2)
-      - echo "AMI ID: ${AMI_ID}"
-      
-      - echo "Writing AMI metadata..."
-      - cd ../..
-      - |
-        cat > ami-metadata.json <<EOF
-        {
-          "amiId": "${AMI_ID}",
-          "imageTag": "${IMAGE_TAG}",
-          "commitHash": "${COMMIT_HASH}",
-          "buildDate": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')",
-          "region": "${AWS_DEFAULT_REGION}",
-          "projectName": "${PROJECT_NAME}"
-        }
-        EOF
-      - cat ami-metadata.json
-      
-      - echo "Golden AMI built successfully!"
-
+      - cd infrastructure/packer
+      - packer init .
+      - packer build .
 artifacts:
   files:
-    - ami-metadata.json
-  name: AMIBuildArtifact
+    - packer-manifest.json
