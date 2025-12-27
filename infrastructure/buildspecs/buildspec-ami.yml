@@ -4,7 +4,10 @@ phases:
   install:
     commands:
       - echo "Installing dependencies..."
-      - yum install -y unzip curl
+      - echo "Cleaning yum..."
+      - sudo yum clean all
+      - sudo yum update -y
+      - sudo yum install -y unzip curl || (cat /var/log/yum.log && exit 1)
       - echo "Installing Packer..."
       - curl -fsSL https://releases.hashicorp.com/packer/1.9.4/packer_1.9.4_linux_amd64.zip -o /tmp/packer.zip
       - unzip /tmp/packer.zip -d /usr/local/bin
