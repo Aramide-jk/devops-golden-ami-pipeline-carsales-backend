@@ -4,7 +4,7 @@ env:
   variables:
     AWS_DEFAULT_REGION: "us-east-1"
     AWS_ACCOUNT_ID: "734649603753"
-    IMAGE_REPO_NAME: "backend"
+    IMAGE_REPO_NAME: "backend-docker-build"
 
 phases:
   pre_build:
