@@ -1,28 +1,10 @@
 version: 0.2
 
 phases:
-  install:
-    commands:
-      - echo "Verifying OS..."
-      - cat /etc/os-release
-
-      - echo "Updating package metadata..."
-      - dnf clean all
-      - dnf makecache
-
-      - echo "Installing dependencies..."
-      - dnf install -y unzip curl
-
-      - echo "Installing Packer..."
-      - curl -fsSL https://releases.hashicorp.com/packer/1.9.4/packer_1.9.4_linux_amd64.zip -o /tmp/packer.zip
-      - unzip /tmp/packer.zip -d /usr/local/bin
-      - chmod +x /usr/local/bin/packer
-      - packer version
-
   build:
     commands:
-      - echo "Starting Golden AMI build..."
+      - echo "Using custom AL2023 CodeBuild image"
+      - packer version
       - cd infrastructure/packer
-      - ls -la
       - packer init .
       - packer build backend-ami.pkr.hcl
