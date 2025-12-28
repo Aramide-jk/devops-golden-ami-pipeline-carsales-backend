@@ -1,9 +1,14 @@
 #!/bin/bash
-set -euo pipefail
+set -euxo pipefail
 
-dnf install -y docker
+echo "========== Installing Docker =========="
 
-systemctl enable docker
-systemctl start docker
+sudo dnf install -y docker
+sudo systemctl enable docker
+sudo systemctl start docker
+sudo usermod -aG docker ec2-user
 
-usermod -aG docker ec2-user
+sudo docker --version
+sudo docker run hello-world
+
+echo "✓ Docker installed"
