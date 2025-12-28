@@ -8,7 +8,7 @@ phases:
   install:
     commands:
       - echo "Installing dependencies..."
-      - apt-get update
+      - apt-get update -y
       - apt-get install -y wget unzip jq
   
   pre_build:
@@ -19,17 +19,16 @@ phases:
       - unzip -q packer_${PACKER_VERSION}_linux_amd64.zip
       - chmod +x packer
       - ./packer version
-      - echo "Current directory:"
-      - pwd
+      - echo "Current directory is $(pwd)"
       - echo "Listing files:"
       - ls -la
       - echo "Getting latest Docker image tag from ECR..."
-      - LATEST_TAG=$(aws ecr describe-images --repository-name backend --region us-east-1 --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' --output text 2>/dev/null || echo "latest")
-      - echo "Latest image tag: ${LATEST_TAG}"
+      - export LATEST_TAG=$(aws ecr describe-images --repository-name backend --region us-east-1 --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' --output text 2>/dev/null || echo "latest")
+      - echo "Latest image tag is ${LATEST_TAG}"
       - export IMAGE_TAG=${LATEST_TAG}
       - export ECR_REPO="backend"
       - echo "Checking if packer directory exists..."
-      - ls -la infrastructure/packer/ || echo "Directory not found!"
+      - test -d infrastructure/packer && echo "Directory found" || echo "ERROR - Directory not found"
       - cd infrastructure/packer
   
   build:
@@ -38,15 +37,15 @@ phases:
       - ../../packer init backend-ami.pkr.hcl
       - echo "Validating Packer template..."
       - ../../packer validate -var "aws_region=us-east-1" -var "aws_account_id=${AWS_ACCOUNT_ID}" -var "project_name=${PROJECT_NAME}" -var "ecr_repo=${ECR_REPO}" -var "docker_image_tag=${IMAGE_TAG}" -var "instance_profile_name=${INSTANCE_PROFILE_NAME}" -var "vpc_id=${VPC_ID}" -var "subnet_id=${SUBNET_ID}" backend-ami.pkr.hcl
-      - echo "Building AMI (this takes 15-20 minutes)..."
+      - echo "Building AMI - this takes 15-20 minutes..."
       - ../../packer build -var "aws_region=us-east-1" -var "aws_account_id=${AWS_ACCOUNT_ID}" -var "project_name=${PROJECT_NAME}" -var "ecr_repo=${ECR_REPO}" -var "docker_image_tag=${IMAGE_TAG}" -var "instance_profile_name=${INSTANCE_PROFILE_NAME}" -var "vpc_id=${VPC_ID}" -var "subnet_id=${SUBNET_ID}" backend-ami.pkr.hcl
   
   post_build:
     commands:
-      - echo "Extracting AMI ID..."
-      - AMI_ID=$(jq -r '.builds[0].artifact_id' packer-manifest.json | cut -d':' -f2)
-      - echo "AMI created: ${AMI_ID}"
+      - echo "Extracting AMI ID from manifest..."
       - cd ../..
+      - export AMI_ID=$(jq -r '.builds[0].artifact_id' infrastructure/packer/packer-manifest.json | cut -d':' -f2)
+      - echo "AMI created with ID ${AMI_ID}"
       - echo "{\"amiId\":\"${AMI_ID}\",\"imageTag\":\"${IMAGE_TAG}\",\"buildDate\":\"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"}" > ami-info.json
       - cat ami-info.json
       - echo "=== AMI Build Complete ==="
