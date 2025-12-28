@@ -3,8 +3,8 @@ version: 0.2
 phases:
   install:
     commands:
-      - dnf update -y
-      - dnf install -y curl unzip
+      - dnf update -y --refresh || sleep 10 && dnf update -y
+      - dnf install -y curl unzip || (dnf clean all && dnf install -y curl unzip)
       - curl -qL -o packer.zip https://releases.hashicorp.com/packer/1.10.4/packer_1.10.4_linux_amd64.zip
       - unzip packer.zip
       - sudo mv packer /usr/local/bin/
