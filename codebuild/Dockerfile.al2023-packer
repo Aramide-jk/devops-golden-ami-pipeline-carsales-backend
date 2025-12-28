@@ -2,16 +2,16 @@ FROM public.ecr.aws/codebuild/amazonlinux2023-x86_64-standard:latest
 
 USER root
 
+ENV PATH="/usr/local/bin:/usr/bin:/bin"
+
 RUN dnf clean all && \
-    dnf install -y unzip curl tar gzip jq awscli && \
+    dnf install -y unzip curl && \
     dnf clean all
 
-# Install packer
 RUN curl -fsSL https://releases.hashicorp.com/packer/1.9.4/packer_1.9.4_linux_amd64.zip \
     -o /tmp/packer.zip && \
     unzip /tmp/packer.zip -d /usr/local/bin && \
     chmod +x /usr/local/bin/packer && \
     rm -f /tmp/packer.zip
 
-# Verify packer is in PATH
-RUN /usr/local/bin/packer version
+RUN packer version
