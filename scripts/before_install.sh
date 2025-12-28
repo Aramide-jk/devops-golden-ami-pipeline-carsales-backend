@@ -5,7 +5,7 @@ echo "=== BeforeInstall Hook Started ==="
 
 REGION="us-east-1"
 ACCOUNT_ID="734649603753"
-REPO="backend"
+REPO="backend-docker-build"
 
 # Ensure Docker is running
 systemctl start docker
