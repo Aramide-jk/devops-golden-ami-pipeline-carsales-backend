@@ -19,25 +19,46 @@ phases:
       - unzip -q packer_${PACKER_VERSION}_linux_amd64.zip
       - chmod +x packer
       - ./packer version
-      - echo "Current directory is $(pwd)"
-      - echo "Listing files:"
-      - ls -la
+      - echo "=== DEBUG - Checking environment variables ==="
+      - echo "AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID}"
+      - echo "PROJECT_NAME=${PROJECT_NAME}"
+      - echo "VPC_ID=${VPC_ID}"
+      - echo "SUBNET_ID=${SUBNET_ID}"
+      - echo "INSTANCE_PROFILE_NAME=${INSTANCE_PROFILE_NAME}"
       - echo "Getting latest Docker image tag from ECR..."
       - export LATEST_TAG=$(aws ecr describe-images --repository-name backend --region us-east-1 --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' --output text 2>/dev/null || echo "latest")
-      - echo "Latest image tag is ${LATEST_TAG}"
       - export IMAGE_TAG=${LATEST_TAG}
       - export ECR_REPO="backend"
-      - echo "Checking if packer directory exists..."
-      - test -d infrastructure/packer && echo "Directory found" || echo "ERROR - Directory not found"
+      - echo "IMAGE_TAG=${IMAGE_TAG}"
+      - echo "ECR_REPO=${ECR_REPO}"
+      - echo "=== DEBUG - Checking directory structure ==="
+      - pwd
+      - ls -la
+      - echo "=== DEBUG - Checking infrastructure/packer ==="
+      - ls -la infrastructure/packer/ || echo "ERROR - Directory not found"
+      - echo "=== DEBUG - Checking for HCL file ==="
+      - test -f infrastructure/packer/backend-ami.pkr.hcl && echo "HCL file found" || echo "ERROR - HCL file not found"
       - cd infrastructure/packer
+      - echo "Current directory after cd:"
+      - pwd
+      - ls -la
   
   build:
     commands:
       - echo "Initializing Packer..."
-      - ../../packer init backend-ami.pkr.hcl
+      - ../../packer init backend-ami.pkr.hcl || echo "Init failed but continuing..."
       - echo "Validating Packer template..."
-      - ../../packer validate -var "aws_region=us-east-1" -var "aws_account_id=${AWS_ACCOUNT_ID}" -var "project_name=${PROJECT_NAME}" -var "ecr_repo=${ECR_REPO}" -var "docker_image_tag=${IMAGE_TAG}" -var "instance_profile_name=${INSTANCE_PROFILE_NAME}" -var "vpc_id=${VPC_ID}" -var "subnet_id=${SUBNET_ID}" backend-ami.pkr.hcl
-      - echo "Building AMI - this takes 15-20 minutes..."
+      - echo "Running validation with these variables:"
+      - echo "  aws_region=us-east-1"
+      - echo "  aws_account_id=${AWS_ACCOUNT_ID}"
+      - echo "  project_name=${PROJECT_NAME}"
+      - echo "  ecr_repo=${ECR_REPO}"
+      - echo "  docker_image_tag=${IMAGE_TAG}"
+      - echo "  instance_profile_name=${INSTANCE_PROFILE_NAME}"
+      - echo "  vpc_id=${VPC_ID}"
+      - echo "  subnet_id=${SUBNET_ID}"
+      - ../../packer validate -var "aws_region=us-east-1" -var "aws_account_id=${AWS_ACCOUNT_ID}" -var "project_name=${PROJECT_NAME}" -var "ecr_repo=${ECR_REPO}" -var "docker_image_tag=${IMAGE_TAG}" -var "instance_profile_name=${INSTANCE_PROFILE_NAME}" -var "vpc_id=${VPC_ID}" -var "subnet_id=${SUBNET_ID}" backend-ami.pkr.hcl 2>&1 || (echo "VALIDATION FAILED - See error above" && exit 1)
+      - echo "Validation succeeded! Building AMI..."
       - ../../packer build -var "aws_region=us-east-1" -var "aws_account_id=${AWS_ACCOUNT_ID}" -var "project_name=${PROJECT_NAME}" -var "ecr_repo=${ECR_REPO}" -var "docker_image_tag=${IMAGE_TAG}" -var "instance_profile_name=${INSTANCE_PROFILE_NAME}" -var "vpc_id=${VPC_ID}" -var "subnet_id=${SUBNET_ID}" backend-ami.pkr.hcl
   
   post_build:
