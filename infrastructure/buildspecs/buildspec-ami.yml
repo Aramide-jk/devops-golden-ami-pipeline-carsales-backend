@@ -3,8 +3,7 @@ version: 0.2
 phases:
   install:
     commands:
-      - systemctl stop amazon-ssm-agent
-      - dnf update -y
+      - dnf update -y --refresh
       - dnf install -y curl unzip
       - systemctl start amazon-ssm-agent
       - curl -qL -o packer.zip https://releases.hashicorp.com/packer/1.10.4/packer_1.10.4_linux_amd64.zip
