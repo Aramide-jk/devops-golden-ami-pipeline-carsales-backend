@@ -21,4 +21,3 @@ sudo docker pull ${IMAGE_URI}
 sudo docker images | grep ${REPO}
 
 echo "✓ Backend configured, image pre-pulled"
-EOF
