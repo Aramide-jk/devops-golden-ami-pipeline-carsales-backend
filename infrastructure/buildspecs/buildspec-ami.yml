@@ -5,14 +5,11 @@ phases:
     commands:
       - dnf update -y
       - dnf install -y curl unzip
-      - echo "Installing Packer..."
       - curl -qL -o packer.zip https://releases.hashicorp.com/packer/1.10.4/packer_1.10.4_linux_amd64.zip
       - unzip packer.zip
       - sudo mv packer /usr/local/bin/
   build:
     commands:
-      - export PATH=$PATH:/usr/local/bin
-      - echo "Using AL2023 with Packer"
       - packer version
       - cd infrastructure/packer
       - packer init .
@@ -24,4 +21,4 @@ artifacts:
     - infrastructure/packer/**/*
     - appspec.yml
     - scripts/**/*
-  name: GoldenAmiArtifact   
+  name: GoldenAmiArtifact
