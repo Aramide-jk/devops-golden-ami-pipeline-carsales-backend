@@ -9,49 +9,39 @@ env:
 phases:
   install:
     commands:
-      - "echo Verifying OS..."
+      - "echo Verifying OS"
       - "cat /etc/os-release"
-      - "echo Installing dependencies (AL2023)..."
       - "dnf clean all"
       - "dnf makecache"
-      - "dnf install -y unzip curl wget jq"
-      - "echo Installing AWS SSM plugin..."
-      - "dnf install -y amazon-ssm-agent"
+      - "dnf install -y unzip curl wget jq amazon-ssm-agent"
       - "systemctl enable amazon-ssm-agent"
       - "systemctl start amazon-ssm-agent"
 
   pre_build:
     commands:
-      - "echo Installing Packer..."
+      - "echo Installing Packer"
       - "curl -fsSL https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip -o packer.zip"
       - "unzip -o packer.zip"
       - "chmod +x packer"
       - "./packer version"
-      - "echo Making Packer scripts executable..."
       - "chmod +x infrastructure/packer/scripts/*.sh"
-      - "echo Fetching latest Docker image tag..."
       - "export IMAGE_TAG=$(aws ecr describe-images --repository-name backend --region us-east-1 --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)"
-      - "echo Using image tag: ${IMAGE_TAG}"
       - "export ECR_REPO=backend-docker-build"
       - "cd infrastructure/packer"
 
   build:
     commands:
-      - "echo Initializing Packer..."
       - "../../packer init backend-ami.pkr.hcl"
-      - "echo Validating Packer template..."
-      - "../../packer validate -var \"aws_region=us-east-1\" -var \"aws_account_id=${AWS_ACCOUNT_ID}\" -var \"project_name=${PROJECT_NAME}\" -var \"ecr_repo=${ECR_REPO}\" -var \"docker_image_tag=${IMAGE_TAG}\" -var \"instance_profile_name=${INSTANCE_PROFILE_NAME}\" -var \"vpc_id=${VPC_ID}\" -var \"subnet_id=${SUBNET_ID}\" backend-ami.pkr.hcl"
-      - "echo Building Golden AMI..."
-      - "../../packer build -var \"aws_region=us-east-1\" -var \"aws_account_id=${AWS_ACCOUNT_ID}\" -var \"project_name=${PROJECT_NAME}\" -var \"ecr_repo=${ECR_REPO}\" -var \"docker_image_tag=${IMAGE_TAG}\" -var \"instance_profile_name=${INSTANCE_PROFILE_NAME}\" -var \"vpc_id=${VPC_ID}\" -var \"subnet_id=${SUBNET_ID}\" backend-ami.pkr.hcl || (cat /tmp/packer.log && exit 1)"
+      - "../../packer validate -var aws_region=us-east-1 -var aws_account_id=${AWS_ACCOUNT_ID} -var project_name=${PROJECT_NAME} -var ecr_repo=${ECR_REPO} -var docker_image_tag=${IMAGE_TAG} -var instance_profile_name=${INSTANCE_PROFILE_NAME} -var vpc_id=${VPC_ID} -var subnet_id=${SUBNET_ID} backend-ami.pkr.hcl"
+      - "../../packer build -var aws_region=us-east-1 -var aws_account_id=${AWS_ACCOUNT_ID} -var project_name=${PROJECT_NAME} -var ecr_repo=${ECR_REPO} -var docker_image_tag=${IMAGE_TAG} -var instance_profile_name=${INSTANCE_PROFILE_NAME} -var vpc_id=${VPC_ID} -var subnet_id=${SUBNET_ID} backend-ami.pkr.hcl || (cat /tmp/packer.log && exit 1)"
 
   post_build:
     commands:
-      - "echo Extracting AMI ID..."
       - "cd ../.."
-      - "export AMI_ID=$(jq -r '.builds[0].artifact_id' infrastructure/packer/packer-manifest.json | cut -d':' -f2)"
-      - "echo AMI ID: ${AMI_ID}"
-      - "echo {\"amiId\":\"${AMI_ID}\",\"imageTag\":\"${IMAGE_TAG}\"}" > ami-info.json
+      - "export AMI_ID=$(jq -r '.builds[0].artifact_id' infrastructure/packer/packer-manifest.json | cut -d: -f2)"
+      - "printf '{\"amiId\":\"%s\",\"imageTag\":\"%s\"}' \"$AMI_ID\" \"$IMAGE_TAG\" > ami-info.json"
+      - "cat ami-info.json"
 
 artifacts:
   files:
-    - ami-info.json   
+    - ami-info.json
