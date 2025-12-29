@@ -14,7 +14,7 @@ phases:
       - "which curl"
       - "which unzip"
       - "which jq || true"
-      
+
   pre_build:
     commands:
       - "echo Installing Packer"
@@ -29,6 +29,19 @@ phases:
 
   build:
     commands:
+      # ===== DEBUGGING (ADDED ONLY) =====
+      - "echo AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID}"
+      - "echo PROJECT_NAME=${PROJECT_NAME}"
+      - "echo ECR_REPO=${ECR_REPO}"
+      - "echo IMAGE_TAG=${IMAGE_TAG}"
+      - "echo INSTANCE_PROFILE_NAME=${INSTANCE_PROFILE_NAME}"
+      - "echo VPC_ID=${VPC_ID}"
+      - "echo SUBNET_ID=${SUBNET_ID}"
+      - "pwd"
+      - "ls -la"
+      - "ls -la ../../"
+      # ===== END DEBUGGING =====
+
       - "../../packer init backend-ami.pkr.hcl"
       - "../../packer validate -var aws_region=us-east-1 -var aws_account_id=${AWS_ACCOUNT_ID} -var project_name=${PROJECT_NAME} -var ecr_repo=${ECR_REPO} -var docker_image_tag=${IMAGE_TAG} -var instance_profile_name=${INSTANCE_PROFILE_NAME} -var vpc_id=${VPC_ID} -var subnet_id=${SUBNET_ID} backend-ami.pkr.hcl"
       - "../../packer build -var aws_region=us-east-1 -var aws_account_id=${AWS_ACCOUNT_ID} -var project_name=${PROJECT_NAME} -var ecr_repo=${ECR_REPO} -var docker_image_tag=${IMAGE_TAG} -var instance_profile_name=${INSTANCE_PROFILE_NAME} -var vpc_id=${VPC_ID} -var subnet_id=${SUBNET_ID} backend-ami.pkr.hcl || (cat /tmp/packer.log && exit 1)"
