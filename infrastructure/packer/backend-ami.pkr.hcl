@@ -93,6 +93,7 @@ build {
   # Base OS tools
   # ----------------------
   provisioner "shell" {
+    execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
     inline = [
       "set -euxo pipefail",
       "echo Installing base tools...",
@@ -135,6 +136,7 @@ build {
   # Backend configuration (ECR pull + validation)
   # ----------------------
 provisioner "shell" {
+  execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
   environment_vars = [
     "AWS_REGION=${var.aws_region}",
     "AWS_ACCOUNT_ID=${var.aws_account_id}",
