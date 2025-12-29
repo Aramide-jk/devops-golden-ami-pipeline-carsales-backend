@@ -134,27 +134,28 @@ build {
   # ----------------------
   # Backend configuration (ECR pull + validation)
   # ----------------------
-  provisioner "shell" {
-    inline = [
-      "set -euxo pipefail",
-      "echo Configuring backend image...",
-      "REGION=${var.aws_region}",
-      "AWS_ACCOUNT_ID=${var.aws_account_id}",
-      "REPO=${var.ecr_repo}",
-      "IMAGE_TAG=${var.docker_image_tag}",
-      "IMAGE_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO}:${IMAGE_TAG}",
-      "aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com",
-      "docker pull ${IMAGE_URI}",
-      "docker images | grep ${REPO}",
-      "echo Running backend container for validation...",
-      "docker run -d --name backend-validate -p 8000:8000 ${IMAGE_URI}",
-      "sleep 10",
-      "curl -f http://localhost:8000",
-      "docker rm -f backend-validate",
-      "echo Backend validated successfully"
-    ]
-  }
-
+provisioner "shell" {
+  environment_vars = [
+    "AWS_REGION=${var.aws_region}",
+    "AWS_ACCOUNT_ID=${var.aws_account_id}",
+    "ECR_REPO=${var.ecr_repo}",
+    "DOCKER_IMAGE_TAG=${var.docker_image_tag}"
+  ]
+  inline = [
+    "set -euxo pipefail",
+    "echo Configuring backend image...",
+    "IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$DOCKER_IMAGE_TAG",
+    "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com",
+    "docker pull $IMAGE_URI",
+    "docker images | grep $ECR_REPO",
+    "echo Running backend container for validation...",
+    "docker run -d --name backend-validate -p 8000:8000 $IMAGE_URI",
+    "sleep 10",
+    "curl -f http://localhost:8000",
+    "docker rm -f backend-validate",
+    "echo Backend validated successfully"
+  ]
+}
   # ----------------------
   # POST-PROCESSOR: Manifest
   # ----------------------
