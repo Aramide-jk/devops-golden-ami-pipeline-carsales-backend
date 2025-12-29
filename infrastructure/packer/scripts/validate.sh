@@ -1,18 +1,28 @@
 #!/bin/bash
-set -euo pipefail
+set -euxo pipefail
 
-echo "Validating Docker..."
+echo "Validating Docker service..."
 systemctl is-active docker
 
 echo "Validating CodeDeploy agent..."
 systemctl is-active codedeploy-agent
 
-echo "Running test container..."
-docker run -d -p 8080:80 nginx
+echo "Running backend container for validation..."
 
-sleep 5
-curl -f http://localhost:8080
+docker run -d \
+  --name backend-validate \
+  -p 8000:8000 \
+  ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${DOCKER_IMAGE_TAG}
 
-docker rm -f $(docker ps -q)
+sleep 10
 
-echo "Golden AMI validation PASSED"
+echo "Validating backend health endpoint..."
+curl -f http://localhost:8000 || {
+  echo "Backend health check failed"
+  docker logs backend-validate
+  exit 1
+}
+
+docker rm -f backend-validate
+
+echo "✓ Golden AMI validation PASSED"
