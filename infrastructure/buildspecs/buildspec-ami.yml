@@ -9,13 +9,10 @@ env:
 phases:
   install:
     commands:
-      - "echo Verifying OS"
+      - "echo Verifying CodeBuild OS"
       - "cat /etc/os-release"
-      - "dnf clean all"
-      - "dnf makecache"
-      - "dnf install -y unzip curl wget jq amazon-ssm-agent"
-      - "systemctl enable amazon-ssm-agent"
-      - "systemctl start amazon-ssm-agent"
+      - "apt-get update -y"
+      - "apt-get install -y unzip curl wget jq"
 
   pre_build:
     commands:
