@@ -3,54 +3,83 @@ version: 0.2
 env:
   variables:
     PACKER_VERSION: "1.10.0"
+    PACKER_LOG: "1"
+    PACKER_LOG_PATH: "/tmp/packer.log"
 
 phases:
   install:
     commands:
-      - echo "Installing dependencies..."
-      - apt-get update -y
-      - apt-get install -y wget unzip jq
-      - echo "Installing AWS Session Manager Plugin..."
-      - curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
-      - dpkg -i session-manager-plugin.deb || apt-get install -f -y
-      - session-manager-plugin --version
-  
+      - echo "Verifying OS..."
+      - cat /etc/os-release
+
+      - echo "Installing dependencies (AL2023)..."
+      - dnf clean all
+      - dnf makecache
+      - dnf install -y unzip curl wget jq
+
+      - echo "Installing AWS SSM plugin..."
+      - dnf install -y amazon-ssm-agent
+      - systemctl enable amazon-ssm-agent
+      - systemctl start amazon-ssm-agent
+
   pre_build:
     commands:
-      - echo "=== AMI Build Started ==="
       - echo "Installing Packer..."
-      - wget -q https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip
-      - unzip -q packer_${PACKER_VERSION}_linux_amd64.zip
+      - curl -fsSL https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip -o packer.zip
+      - unzip -o packer.zip
       - chmod +x packer
       - ./packer version
+
       - echo "Making Packer scripts executable..."
       - chmod +x infrastructure/packer/scripts/*.sh
-      - ls -la infrastructure/packer/scripts/
-      - echo "Getting latest Docker image tag from ECR..."
-      - export LATEST_TAG=$(aws ecr describe-images --repository-name backend --region us-east-1 --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' --output text 2>/dev/null || echo "latest")
-      - echo "Latest image tag is ${LATEST_TAG}"
-      - export IMAGE_TAG=${LATEST_TAG}
-      - export ECR_REPO="backend"
+
+      - echo "Fetching latest Docker image tag..."
+      - export IMAGE_TAG=$(aws ecr describe-images \
+          --repository-name backend \
+          --region us-east-1 \
+          --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' \
+          --output text)
+      - echo "Using image tag: ${IMAGE_TAG}"
+
+      - export ECR_REPO="backend-docker-build"
       - cd infrastructure/packer
-  
+
   build:
     commands:
       - echo "Initializing Packer..."
       - ../../packer init backend-ami.pkr.hcl
+
       - echo "Validating Packer template..."
-      - ../../packer validate -var "aws_region=us-east-1" -var "aws_account_id=${AWS_ACCOUNT_ID}" -var "project_name=${PROJECT_NAME}" -var "ecr_repo=${ECR_REPO}" -var "docker_image_tag=${IMAGE_TAG}" -var "instance_profile_name=${INSTANCE_PROFILE_NAME}" -var "vpc_id=${VPC_ID}" -var "subnet_id=${SUBNET_ID}" backend-ami.pkr.hcl
-      - echo "Building AMI - this takes 15-20 minutes..."
-      - ../../packer build -var "aws_region=us-east-1" -var "aws_account_id=${AWS_ACCOUNT_ID}" -var "project_name=${PROJECT_NAME}" -var "ecr_repo=${ECR_REPO}" -var "docker_image_tag=${IMAGE_TAG}" -var "instance_profile_name=${INSTANCE_PROFILE_NAME}" -var "vpc_id=${VPC_ID}" -var "subnet_id=${SUBNET_ID}" backend-ami.pkr.hcl
-  
+      - ../../packer validate \
+          -var "aws_region=us-east-1" \
+          -var "aws_account_id=${AWS_ACCOUNT_ID}" \
+          -var "project_name=${PROJECT_NAME}" \
+          -var "ecr_repo=${ECR_REPO}" \
+          -var "docker_image_tag=${IMAGE_TAG}" \
+          -var "instance_profile_name=${INSTANCE_PROFILE_NAME}" \
+          -var "vpc_id=${VPC_ID}" \
+          -var "subnet_id=${SUBNET_ID}" \
+          backend-ami.pkr.hcl
+
+      - echo "Building Golden AMI..."
+      - ../../packer build \
+          -var "aws_region=us-east-1" \
+          -var "aws_account_id=${AWS_ACCOUNT_ID}" \
+          -var "project_name=${PROJECT_NAME}" \
+          -var "ecr_repo=${ECR_REPO}" \
+          -var "docker_image_tag=${IMAGE_TAG}" \
+          -var "instance_profile_name=${INSTANCE_PROFILE_NAME}" \
+          -var "vpc_id=${VPC_ID}" \
+          -var "subnet_id=${SUBNET_ID}" \
+          backend-ami.pkr.hcl || (cat /tmp/packer.log && exit 1)
+
   post_build:
     commands:
-      - echo "Extracting AMI ID from manifest..."
+      - echo "Extracting AMI ID..."
       - cd ../..
       - export AMI_ID=$(jq -r '.builds[0].artifact_id' infrastructure/packer/packer-manifest.json | cut -d':' -f2)
-      - echo "AMI created with ID ${AMI_ID}"
-      - echo "{\"amiId\":\"${AMI_ID}\",\"imageTag\":\"${IMAGE_TAG}\",\"buildDate\":\"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"}" > ami-info.json
-      - cat ami-info.json
-      - echo "=== AMI Build Complete ==="
+      - echo "AMI ID: ${AMI_ID}"
+      - echo "{\"amiId\":\"${AMI_ID}\",\"imageTag\":\"${IMAGE_TAG}\"}" > ami-info.json
 
 artifacts:
   files:
