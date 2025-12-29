@@ -1,19 +1,12 @@
 #!/bin/bash
-set -euxo pipefail
+set -eux
 
-echo "========== Installing CodeDeploy Agent =========="
-
+echo "Installing CodeDeploy..."
 REGION=${AWS_REGION:-us-east-1}
-
 sudo dnf install -y ruby
-
 cd /tmp
-wget https://aws-codedeploy-${REGION}.s3.${REGION}.amazonaws.com/latest/install
-chmod +x ./install
+wget -q https://aws-codedeploy-${REGION}.s3.${REGION}.amazonaws.com/latest/install
+chmod +x install
 sudo ./install auto
-
 sudo systemctl enable codedeploy-agent
-sudo systemctl start codedeploy-agent
-sudo systemctl status codedeploy-agent --no-pager
-
-echo "✓ CodeDeploy agent installed"
+echo "✓ CodeDeploy done"
