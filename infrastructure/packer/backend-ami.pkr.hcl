@@ -107,6 +107,7 @@ build {
   # Docker
   # ----------------------
   provisioner "shell" {
+    execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
     inline = [
       "echo Installing Docker...",
       "dnf install -y docker",
@@ -120,6 +121,7 @@ build {
   # CodeDeploy agent
   # ----------------------
   provisioner "shell" {
+    execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
     inline = [
       "echo Installing CodeDeploy agent...",
       "cd /tmp",
