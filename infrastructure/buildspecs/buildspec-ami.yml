@@ -10,6 +10,10 @@ phases:
       - echo "Installing dependencies..."
       - apt-get update -y
       - apt-get install -y wget unzip jq
+      - echo "Installing AWS Session Manager Plugin..."
+      - curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
+      - dpkg -i session-manager-plugin.deb || apt-get install -f -y
+      - session-manager-plugin --version
   
   pre_build:
     commands:
