@@ -139,7 +139,7 @@ build {
       "set -euxo pipefail",
       "echo Configuring backend image...",
       "REGION=${var.aws_region}",
-      "ACCOUNT_ID=${var.aws_account_id}",
+      "AWS_ACCOUNT_ID=${var.aws_account_id}",
       "REPO=${var.ecr_repo}",
       "IMAGE_TAG=${var.docker_image_tag}",
       "IMAGE_URI=${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO}:${IMAGE_TAG}",
