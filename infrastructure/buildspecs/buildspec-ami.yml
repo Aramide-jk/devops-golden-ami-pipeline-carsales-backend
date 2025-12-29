@@ -11,8 +11,9 @@ phases:
     commands:
       - "echo Verifying CodeBuild OS"
       - "cat /etc/os-release"
-      - "apt-get update -y"
-      - "apt-get install -y unzip curl wget jq"
+      - "dnf clean all || true"
+      - "dnf makecache"
+      - "dnf install -y unzip curl wget jq"
 
   pre_build:
     commands:
