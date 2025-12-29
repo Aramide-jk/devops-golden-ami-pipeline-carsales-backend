@@ -63,7 +63,13 @@ source "amazon-ebs" "golden_ami" {
   associate_public_ip_address = true
   iam_instance_profile        = var.instance_profile_name
   
-  ssh_username = "ec2-user"
+  # Use SSM instead of SSH
+  communicator                = "ssh"
+  ssh_username                = "ec2-user"
+  ssh_interface               = "session_manager"
+  
+  # Increase timeout
+  ssh_timeout = "10m"
   
   tags = {
     Name        = "${var.project_name}-golden-ami"
@@ -71,6 +77,9 @@ source "amazon-ebs" "golden_ami" {
     ManagedBy   = "Packer"
     BuildDate   = "{{timestamp}}"
   }
+  
+  # Don't require a keypair
+  temporary_key_pair_type = "ed25519"
 }
 
 build {
