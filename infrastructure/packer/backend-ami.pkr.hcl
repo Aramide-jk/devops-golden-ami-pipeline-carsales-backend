@@ -142,7 +142,7 @@ build {
       "AWS_ACCOUNT_ID=${var.aws_account_id}",
       "REPO=${var.ecr_repo}",
       "IMAGE_TAG=${var.docker_image_tag}",
-      "IMAGE_URI=${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO}:${IMAGE_TAG}",
+      "IMAGE_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO}:${IMAGE_TAG}",
       "aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com",
       "docker pull ${IMAGE_URI}",
       "docker images | grep ${REPO}",
