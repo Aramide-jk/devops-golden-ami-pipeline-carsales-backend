@@ -18,7 +18,7 @@ variable "aws_account_id" {
 
 variable "project_name" {
   type    = string
-  default = "backend"
+  default = "backend-docker-build"
 }
 
 variable "ecr_repo" {
