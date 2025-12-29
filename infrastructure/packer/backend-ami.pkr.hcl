@@ -143,7 +143,7 @@ build {
       "REPO=${var.ecr_repo}",
       "IMAGE_TAG=${var.docker_image_tag}",
       "IMAGE_URI=${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO}:${IMAGE_TAG}",
-      "aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com",
+      "aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com",
       "docker pull ${IMAGE_URI}",
       "docker images | grep ${REPO}",
       "echo Running backend container for validation...",
