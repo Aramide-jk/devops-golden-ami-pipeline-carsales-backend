@@ -9,12 +9,12 @@ env:
 phases:
   install:
     commands:
-      - "echo Verifying CodeBuild OS"
+      - "echo Verifying CodeBuild environment"
       - "cat /etc/os-release"
-      - "dnf clean all || true"
-      - "dnf makecache"
-      - "dnf install -y unzip curl wget jq"
-
+      - "which curl"
+      - "which unzip"
+      - "which jq || true"
+      
   pre_build:
     commands:
       - "echo Installing Packer"
