@@ -139,12 +139,13 @@ provisioner "shell" {
     "AWS_REGION=${var.aws_region}",
     "AWS_ACCOUNT_ID=${var.aws_account_id}",
     "ECR_REPO=${var.ecr_repo}",
-    "DOCKER_IMAGE_TAG=${var.docker_image_tag}"
+    "IMAGE_TAG=${var.docker_image_tag}"
   ]
   inline = [
     "set -euxo pipefail",
     "echo Configuring backend image...",
-    "IMAGE_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/backend-docker-build:${IMAGE_TAG}",
+    "IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG",
+    "echo Image URI: $IMAGE_URI",
     "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com",
     "docker pull $IMAGE_URI",
     "docker images | grep $ECR_REPO",
