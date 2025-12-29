@@ -10,10 +10,9 @@ env:
 phases:
   install:
     commands:
-      - "echo Installing Session Manager Plugin"
-      - "curl https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_64bit/session-manager-plugin.rpm -O"
-      - "sudo rpm -i session-manager-plugin.rpm"
-      - "session-manager-plugin --version"
+      - curl -O https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_64bit/session-manager-plugin.rpm
+      - rpm -i session-manager-plugin.rpm
+      - session-manager-plugin --version
       - "echo Verifying CodeBuild environment"
       - "cat /etc/os-release"
       - "which curl"
