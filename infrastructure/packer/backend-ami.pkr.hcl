@@ -70,7 +70,10 @@ source "amazon-ebs" "golden_ami" {
   iam_instance_profile        = var.instance_profile_name
   security_group_ids          = ["sg-065e160dff515e9e6"]
 
-  communicator = "session-manager"
+  communicator     = "ssh"
+  ssh_username     = "ec2-user"
+  ssh_interface    = "session_manager"
+  ssh_timeout      = "10m"
 
   tags = {
     Name      = "${var.project_name}-golden-ami"
