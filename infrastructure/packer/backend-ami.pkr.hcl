@@ -66,13 +66,12 @@ source "amazon-ebs" "golden_ami" {
   region                      = var.aws_region
   vpc_id                      = var.vpc_id
   subnet_id                   = var.subnet_id
-  associate_public_ip_address = false
-  security_group_ids          = ["sg-065e160dff515e9e6"]
+  associate_public_ip_address = true
   iam_instance_profile        = var.instance_profile_name
+  security_group_ids          = ["sg-065e160dff515e9e6"]
 
-  communicator   = "ssh"
-  ssh_interface  = "session_manager"
-  ssh_username   = "ec2-user"
+  communicator = "ssm"
+  ssh_username = "ec2-user"
 
   tags = {
     Name      = "${var.project_name}-golden-ami"
@@ -88,7 +87,9 @@ source "amazon-ebs" "golden_ami" {
 build {
   sources = ["source.amazon-ebs.golden_ami"]
 
-  # Base OS tools
+  # ----------------------
+  # Base OS tools + AWS CLI + SSM
+  # ----------------------
   provisioner "shell" {
     execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
     inline = [
@@ -96,12 +97,15 @@ build {
       "echo Installing base tools...",
       "dnf clean all",
       "dnf makecache",
-      "dnf install -y git wget unzip jq amazon-ssm-agent",
-      "curl --version"
+      "dnf install -y git wget unzip jq amazon-ssm-agent awscli",
+      "curl --version",
+      "aws --version"
     ]
   }
 
+  # ----------------------
   # Docker
+  # ----------------------
   provisioner "shell" {
     execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
     inline = [
@@ -113,7 +117,9 @@ build {
     ]
   }
 
+  # ----------------------
   # CodeDeploy agent
+  # ----------------------
   provisioner "shell" {
     execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
     inline = [
@@ -128,7 +134,9 @@ build {
     ]
   }
 
-  # Backend ECR pull + validation
+  # ----------------------
+  # Backend configuration (ECR pull + validation)
+  # ----------------------
   provisioner "shell" {
     execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
     environment_vars = [
@@ -154,7 +162,9 @@ build {
     ]
   }
 
+  # ----------------------
   # POST-PROCESSOR: Manifest
+  # ----------------------
   post-processor "manifest" {
     output     = "packer-manifest.json"
     strip_path = true
