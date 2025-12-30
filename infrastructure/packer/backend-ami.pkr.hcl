@@ -66,10 +66,12 @@ source "amazon-ebs" "golden_ami" {
   region                      = var.aws_region
   vpc_id                      = var.vpc_id
   subnet_id                   = var.subnet_id
-  associate_public_ip_address = true
+  associate_public_ip_address = false
+  security_group_ids          = ["sg-065e160dff515e9e6"]
   iam_instance_profile        = var.instance_profile_name
 
-  communicator   = "ssm"
+  communicator   = "ssh"
+  ssh_interface  = "session_manager"
   ssh_username   = "ec2-user"
 
   tags = {
@@ -86,9 +88,7 @@ source "amazon-ebs" "golden_ami" {
 build {
   sources = ["source.amazon-ebs.golden_ami"]
 
-  # ----------------------
   # Base OS tools
-  # ----------------------
   provisioner "shell" {
     execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
     inline = [
@@ -101,9 +101,7 @@ build {
     ]
   }
 
-  # ----------------------
   # Docker
-  # ----------------------
   provisioner "shell" {
     execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
     inline = [
@@ -115,9 +113,7 @@ build {
     ]
   }
 
-  # ----------------------
   # CodeDeploy agent
-  # ----------------------
   provisioner "shell" {
     execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
     inline = [
@@ -132,9 +128,7 @@ build {
     ]
   }
 
-  # ----------------------
-  # Backend configuration (ECR pull + validation)
-  # ----------------------
+  # Backend ECR pull + validation
   provisioner "shell" {
     execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
     environment_vars = [
@@ -160,11 +154,9 @@ build {
     ]
   }
 
-  # ----------------------
   # POST-PROCESSOR: Manifest
-  # ----------------------
   post-processor "manifest" {
     output     = "packer-manifest.json"
     strip_path = true
   }
-}   
+}
