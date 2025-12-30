@@ -69,11 +69,8 @@ source "amazon-ebs" "golden_ami" {
   associate_public_ip_address = true
   iam_instance_profile        = var.instance_profile_name
 
-  communicator   = "ssh"
+  communicator   = "ssm"
   ssh_username   = "ec2-user"
-  ssh_interface  = "session_manager"
-  ssh_timeout    = "10m"
-  temporary_key_pair_type = "ed25519"
 
   tags = {
     Name      = "${var.project_name}-golden-ami"
@@ -96,7 +93,7 @@ build {
     execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
     inline = [
       "set -euxo pipefail",
-      "echo Installing base tools (AL2023-safe)...",
+      "echo Installing base tools...",
       "dnf clean all",
       "dnf makecache",
       "dnf install -y git wget unzip jq amazon-ssm-agent",
@@ -138,30 +135,31 @@ build {
   # ----------------------
   # Backend configuration (ECR pull + validation)
   # ----------------------
-provisioner "shell" {
-  execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
-  environment_vars = [
-    "AWS_REGION=${var.aws_region}",
-    "AWS_ACCOUNT_ID=${var.aws_account_id}",
-    "ECR_REPO=${var.ecr_repo}",
-    "IMAGE_TAG=${var.docker_image_tag}"
-  ]
-  inline = [
-    "set -euxo pipefail",
-    "echo Configuring backend image...",
-    "IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG",
-    "echo Image URI: $IMAGE_URI",
-    "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com",
-    "docker pull $IMAGE_URI",
-    "docker images | grep $ECR_REPO",
-    "echo Running backend container for validation...",
-    "docker run -d --name backend-validate -p 8000:8000 $IMAGE_URI",
-    "sleep 10",
-    "curl -f http://localhost:8000",
-    "docker rm -f backend-validate",
-    "echo Backend validated successfully"
-  ]
-}
+  provisioner "shell" {
+    execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
+    environment_vars = [
+      "AWS_REGION=${var.aws_region}",
+      "AWS_ACCOUNT_ID=${var.aws_account_id}",
+      "ECR_REPO=${var.ecr_repo}",
+      "IMAGE_TAG=${var.docker_image_tag}"
+    ]
+    inline = [
+      "set -euxo pipefail",
+      "echo Configuring backend image...",
+      "IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG",
+      "echo Image URI: $IMAGE_URI",
+      "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com",
+      "docker pull $IMAGE_URI",
+      "docker images | grep $ECR_REPO",
+      "echo Running backend container for validation...",
+      "docker run -d --name backend-validate -p 8000:8000 $IMAGE_URI",
+      "sleep 10",
+      "curl -f http://localhost:8000",
+      "docker rm -f backend-validate",
+      "echo Backend validated successfully"
+    ]
+  }
+
   # ----------------------
   # POST-PROCESSOR: Manifest
   # ----------------------
@@ -169,4 +167,4 @@ provisioner "shell" {
     output     = "packer-manifest.json"
     strip_path = true
   }
-}
+}   
