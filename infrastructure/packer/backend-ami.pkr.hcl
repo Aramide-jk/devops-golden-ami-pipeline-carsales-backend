@@ -96,13 +96,11 @@ build {
     execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
     inline = [
       "set -euxo pipefail",
-
-      "echo Installing base tools...",
-      "dnf remove -y curl-minimal || true",
+      "echo Installing base tools (AL2023-safe)...",
       "dnf clean all",
       "dnf makecache",
-
-      "dnf install -y git wget curl unzip jq amazon-ssm-agent"
+      "dnf install -y git wget unzip jq amazon-ssm-agent",
+      "curl --version"
     ]
   }
 
