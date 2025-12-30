@@ -1,11 +1,15 @@
 version: 0.2
 
 env:
+  parameter-store:
+    PACKER_GITHUB_API_TOKEN: /ci/github/token
+    
   variables:
     PACKER_VERSION: "1.10.0"
     PACKER_LOG: "1"
     PACKER_LOG_PATH: "/tmp/packer.log"
     AWS_ACCOUNT_ID: "734649603753"
+    PACKER_PLUGIN_PATH: "/root/.packer.d/plugins"
 
 phases:
   install:
