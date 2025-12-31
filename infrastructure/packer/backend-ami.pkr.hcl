@@ -97,7 +97,7 @@ build {
     execute_command = "sudo -E bash -c '{{ .Vars }} {{ .Path }}'"
     inline = [
       "set -euxo pipefail",
-      "echo Installing base tools...",
+      "echo 'Installing base tools...'",
       "dnf clean all",
       "dnf makecache",
       "dnf install -y git wget unzip jq awscli",
@@ -113,9 +113,9 @@ build {
     execute_command = "sudo -E bash -c '{{ .Vars }} {{ .Path }}'"
     inline = [
       "set -euxo pipefail",
-      "echo Installing Docker...",
-      "pwd",
-      "whoami",
+      "echo 'Installing Docker...'",
+      "echo \"Current directory: $(pwd)\"",
+      "echo \"Running as user: $(whoami)\"",
       "dnf install -y docker",
       "systemctl enable docker",
       "systemctl start docker",
@@ -124,24 +124,23 @@ build {
   }
 
   # ----------------------
-  # CodeDeploy agent
+  # Ruby + CodeDeploy agent
   # ----------------------
   provisioner "shell" {
     execute_command = "sudo -E bash -c '{{ .Vars }} {{ .Path }}'"
     inline = [
       "set -euxo pipefail",
-      "echo Installing Ruby (required for CodeDeploy)...",
+      "echo 'Installing Ruby (required for CodeDeploy)...'",
       "dnf install -y ruby",
       "ruby --version",
-
-      "echo Installing CodeDeploy agent...",
+      "echo 'Installing CodeDeploy agent...'",
       "cd /tmp",
       "curl -O https://aws-codedeploy-${var.aws_region}.s3.${var.aws_region}.amazonaws.com/latest/install",
       "chmod +x ./install",
       "./install auto",
       "systemctl enable codedeploy-agent",
       "systemctl start codedeploy-agent || true",
-      "systemctl is-active codedeploy-agent || echo CodeDeploy status check failed"
+      "systemctl is-active codedeploy-agent || echo 'CodeDeploy status check failed'"
     ]
   }
 
@@ -158,18 +157,18 @@ build {
     ]
     inline = [
       "set -euxo pipefail",
-      "echo Configuring backend image...",
+      "echo 'Configuring backend image...'",
       "IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG",
-      "echo Image URI: $IMAGE_URI",
+      "echo \"Image URI: $IMAGE_URI\"",
       "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com",
       "docker pull $IMAGE_URI",
       "docker images | grep $ECR_REPO",
-      "echo Running backend container for validation...",
+      "echo 'Running backend container for validation...'",
       "docker run -d --name backend-validate -p 8000:8000 $IMAGE_URI",
       "sleep 10",
       "curl -f http://localhost:8000",
       "docker rm -f backend-validate",
-      "echo Backend validated successfully"
+      "echo 'Backend validated successfully'"
     ]
   }
 
