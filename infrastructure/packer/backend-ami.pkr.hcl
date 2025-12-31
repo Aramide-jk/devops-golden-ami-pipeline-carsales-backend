@@ -100,7 +100,7 @@ build {
       "echo Installing base tools...",
       "dnf clean all",
       "dnf makecache",
-      "dnf install -y git wget unzip jq awscli"
+      "dnf install -y git wget unzip jq awscli",
       "curl --version",
       "aws --version"
     ]
