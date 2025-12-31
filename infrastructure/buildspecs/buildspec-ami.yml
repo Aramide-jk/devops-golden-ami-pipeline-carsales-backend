@@ -9,56 +9,56 @@ env:
 phases:
   install:
     commands:
-      - "dnf install -y unzip jq awscli"
-      - "curl -fsSL https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_64bit/session-manager-plugin.rpm -o ssm.rpm"
-      - "rpm -i ssm.rpm"
+      - dnf install -y unzip jq awscli
+      - curl -fsSL https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_64bit/session-manager-plugin.rpm -o ssm.rpm
+      - rpm -i ssm.rpm
 
   pre_build:
     commands:
-      - "curl -fsSL https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip -o packer.zip"
-      - "unzip -o packer.zip"
-      - "chmod +x packer"
-      - "mv packer /usr/local/bin/packer"
-      - "export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)"
-      - "export IMAGE_TAG=$(aws ecr describe-images --repository-name ${ECR_REPO} --region ${AWS_REGION} --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)"
+      - curl -fsSL https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip -o packer.zip
+      - unzip -o packer.zip
+      - chmod +x packer
+      - mv packer /usr/local/bin/packer
+      - export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - export IMAGE_TAG=$(aws ecr describe-images --repository-name ${ECR_REPO} --region ${AWS_REGION} --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
       - 'if [ -z "$IMAGE_TAG" ] || [ "$IMAGE_TAG" = "None" ]; then echo "ERROR: IMAGE_TAG not found"; exit 1; fi'
-      - "echo 'Using IMAGE_TAG: $IMAGE_TAG'"
-      - "cd infrastructure/packer"
+      - echo "Using IMAGE_TAG: $IMAGE_TAG"
+      - cd infrastructure/packer
 
   build:
     commands:
-      - "echo '=== Starting Packer Build ==='"
-      - "packer validate -var aws_region=${AWS_REGION} -var aws_account_id=${AWS_ACCOUNT_ID} -var project_name=${PROJECT_NAME} -var ecr_repo=${ECR_REPO} -var docker_image_tag=${IMAGE_TAG} -var instance_profile_name=${INSTANCE_PROFILE_NAME} -var vpc_id=${VPC_ID} -var subnet_id=${SUBNET_ID} backend-ami.pkr.hcl"
-      - "packer build -var aws_region=${AWS_REGION} -var aws_account_id=${AWS_ACCOUNT_ID} -var project_name=${PROJECT_NAME} -var ecr_repo=${ECR_REPO} -var docker_image_tag=${IMAGE_TAG} -var instance_profile_name=${INSTANCE_PROFILE_NAME} -var vpc_id=${VPC_ID} -var subnet_id=${SUBNET_ID} backend-ami.pkr.hcl 2>&1 | tee packer-output.log"
-      
-      - "BUILD_STATUS=${PIPESTATUS[0]}"
-      - "if [ $BUILD_STATUS -eq 0 ]; then"
-      - "  echo 'Packer build succeeded!'"
-      - "  AMI_ID=$(grep -o 'ami-[a-z0-9]\{17\}' packer-output.log | tail -1)"
-      - "  echo 'Extracted AMI: $AMI_ID'"
-      - "  if [ -f 'packer-manifest.json' ]; then"
-      - "    AMI_ID=$(jq -r '.builds[0].artifact_id' packer-manifest.json | cut -d: -f2)"
-      - "    echo 'AMI from manifest: $AMI_ID'"
-      - "  fi"
-      - "  echo 'AMI_ID=$AMI_ID' > /tmp/ami.txt"
-      - "else"
-      - "  echo 'Packer build failed!'"
-      - "  echo '=== Last 20 lines of output ==='"
-      - "  tail -20 packer-output.log"
-      - "  exit 1"
-      - "fi"
+      - echo "=== Starting Packer Build ==="
+      - packer validate -var aws_region=${AWS_REGION} -var aws_account_id=${AWS_ACCOUNT_ID} -var project_name=${PROJECT_NAME} -var ecr_repo=${ECR_REPO} -var docker_image_tag=${IMAGE_TAG} -var instance_profile_name=${INSTANCE_PROFILE_NAME} -var vpc_id=${VPC_ID} -var subnet_id=${SUBNET_ID} backend-ami.pkr.hcl
+      - packer build -var aws_region=${AWS_REGION} -var aws_account_id=${AWS_ACCOUNT_ID} -var project_name=${PROJECT_NAME} -var ecr_repo=${ECR_REPO} -var docker_image_tag=${IMAGE_TAG} -var instance_profile_name=${INSTANCE_PROFILE_NAME} -var vpc_id=${VPC_ID} -var subnet_id=${SUBNET_ID} backend-ami.pkr.hcl 2>&1 | tee packer-output.log
+      - BUILD_STATUS=${PIPESTATUS[0]}
+      - if [ $BUILD_STATUS -eq 0 ]; then
+      -   echo "Packer build succeeded!"
+      -   AMI_ID=$(grep -o 'ami-[a-z0-9]\{17\}' packer-output.log | tail -1)
+      -   echo "Extracted AMI: $AMI_ID"
+      -   if [ -f "packer-manifest.json" ]; then
+      -     AMI_ID=$(jq -r ".builds[0].artifact_id" packer-manifest.json | cut -d: -f2)
+      -     echo "AMI from manifest: $AMI_ID"
+      -   fi
+      -   echo "AMI_ID=$AMI_ID" > /tmp/ami.txt
+      - else
+      -   echo "Packer build failed!"
+      -   echo "=== Last 20 lines of output ==="
+      -   tail -20 packer-output.log
+      -   exit 1
+      - fi
 
   post_build:
     commands:
-      - "cd ../.."
-      - "if [ -f '/tmp/ami.txt' ]; then"
-      - "  source /tmp/ami.txt"
-      - "  echo '{\"amiId\":\"$AMI_ID\",\"imageTag\":\"$IMAGE_TAG\"}' > ami-info.json"
-      - "  echo 'Created artifact:'"
-      - "  cat ami-info.json"
-      - "else"
-      - "  echo '{\"amiId\":\"\",\"imageTag\":\"\"}' > ami-info.json"
-      - "fi"
+      - cd ../..
+      - if [ -f "/tmp/ami.txt" ]; then
+      -   source /tmp/ami.txt
+      -   echo "{\"amiId\":\"$AMI_ID\",\"imageTag\":\"$IMAGE_TAG\"}" > ami-info.json
+      -   echo "Created artifact:"
+      -   cat ami-info.json
+      - else
+      -   echo "Build failed, creating empty artifact"
+      -   echo "{\"amiId\":\"\",\"imageTag\":\"\"}" > ami-info.json
+      - fi
 
 artifacts:
   files:
