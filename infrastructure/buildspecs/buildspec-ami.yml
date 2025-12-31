@@ -9,34 +9,39 @@ env:
 phases:
   install:
     commands:
-      - dnf install -y unzip jq awscli
-      - curl -fsSL https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_64bit/session-manager-plugin.rpm -o ssm.rpm
-      - rpm -i ssm.rpm
+      - "dnf install -y unzip jq awscli"
+      - "curl -fsSL https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_64bit/session-manager-plugin.rpm -o ssm.rpm"
+      - "rpm -i ssm.rpm"
 
   pre_build:
     commands:
-      - curl -fsSL https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip -o packer.zip
-      - unzip -o packer.zip
-      - chmod +x packer
-      - mv packer /usr/local/bin/packer
-      - export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-      - export IMAGE_TAG=$(aws ecr describe-images --repository-name ${ECR_REPO} --region ${AWS_REGION} --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text || echo "latest")
-      - echo "IMAGE_TAG=$IMAGE_TAG"
-      - cd infrastructure/packer
+      - "curl -fsSL https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip -o packer.zip"
+      - "unzip -o packer.zip"
+      - "chmod +x packer"
+      - "mv packer /usr/local/bin/packer"
+      - "export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)"
+      - "export IMAGE_TAG=$(aws ecr describe-images --repository-name ${ECR_REPO} --region ${AWS_REGION} --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text || echo latest)"
+      - "echo IMAGE_TAG=${IMAGE_TAG}"
+      - "cd infrastructure/packer"
 
   build:
     commands:
-      - echo "=== Building AMI with Packer ==="
-      - packer build -var aws_region=${AWS_REGION} -var aws_account_id=${AWS_ACCOUNT_ID} -var project_name=${PROJECT_NAME} -var ecr_repo=${ECR_REPO} -var docker_image_tag=${IMAGE_TAG} -var instance_profile_name=${INSTANCE_PROFILE_NAME} -var vpc_id=${VPC_ID} -var subnet_id=${SUBNET_ID} backend-ami.pkr.hcl 2>&1 | tee packer-output.log
-      - exit ${PIPESTATUS[0]}
+      - "echo === PACKER INIT ==="
+      - "packer init backend-ami.pkr.hcl"
+      - "echo === PACKER VALIDATE ==="
+      - "packer validate -var aws_region=${AWS_REGION} -var aws_account_id=${AWS_ACCOUNT_ID} -var project_name=${PROJECT_NAME} -var ecr_repo=${ECR_REPO} -var docker_image_tag=${IMAGE_TAG} -var instance_profile_name=${INSTANCE_PROFILE_NAME} -var vpc_id=${VPC_ID} -var subnet_id=${SUBNET_ID} backend-ami.pkr.hcl"
+      - "echo === PACKER BUILD ==="
+      - "packer build -color=false -var aws_region=${AWS_REGION} -var aws_account_id=${AWS_ACCOUNT_ID} -var project_name=${PROJECT_NAME} -var ecr_repo=${ECR_REPO} -var docker_image_tag=${IMAGE_TAG} -var instance_profile_name=${INSTANCE_PROFILE_NAME} -var vpc_id=${VPC_ID} -var subnet_id=${SUBNET_ID} backend-ami.pkr.hcl | tee packer-output.log"
+      - "exit ${PIPESTATUS[0]}"
 
   post_build:
     commands:
-      - cd ../..
-      - AMI_ID=$(grep -o 'ami-[a-z0-9]\{17\}' infrastructure/packer/packer-output.log | tail -1 || echo "")
-      - echo "{\"amiId\":\"$AMI_ID\",\"imageTag\":\"$IMAGE_TAG\"}" > ami-info.json
-      - cat ami-info.json
+      - "cd ../.."
+      - "AMI_ID=$(grep -o 'ami-[a-z0-9]\\{17\\}' infrastructure/packer/packer-output.log | tail -1)"
+      - "if [ -z \"$AMI_ID\" ]; then echo ERROR: AMI not created; exit 1; fi"
+      - "printf '{\"amiId\":\"%s\",\"imageTag\":\"%s\"}' \"$AMI_ID\" \"$IMAGE_TAG\" > ami-info.json"
+      - "cat ami-info.json"
 
 artifacts:
   files:
-    - ami-info.json
+    - "ami-info.json"
