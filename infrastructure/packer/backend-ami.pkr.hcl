@@ -66,7 +66,7 @@ source "amazon-ebs" "golden_ami" {
   region                      = var.aws_region
   vpc_id                      = var.vpc_id
   subnet_id                   = var.subnet_id
-  associate_public_ip_address = true
+  associate_public_ip_address = false
   iam_instance_profile        = var.instance_profile_name
   security_group_ids          = ["sg-065e160dff515e9e6"]
 
@@ -74,6 +74,7 @@ source "amazon-ebs" "golden_ami" {
   ssh_username     = "ec2-user"
   ssh_interface    = "session_manager"
   ssh_timeout      = "10m"
+  pause_before_ssm = "30s"
 
   tags = {
     Name      = "${var.project_name}-golden-ami"
@@ -99,7 +100,7 @@ build {
       "echo Installing base tools...",
       "dnf clean all",
       "dnf makecache",
-      "dnf install -y git wget unzip jq amazon-ssm-agent awscli",
+      "dnf install -y git wget unzip jq awscli"
       "curl --version",
       "aws --version"
     ]
@@ -111,7 +112,10 @@ build {
   provisioner "shell" {
     execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
     inline = [
+      "set -euxo pipefail",
       "echo Installing Docker...",
+      "echo 'Current directory: $(pwd)'",
+      "echo 'Running as user: $(whoami)'",
       "dnf install -y docker",
       "systemctl enable docker",
       "systemctl start docker",
