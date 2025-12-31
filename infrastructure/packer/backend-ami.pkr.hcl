@@ -94,7 +94,7 @@ build {
   # Base OS tools + AWS CLI + SSM
   # ----------------------
   provisioner "shell" {
-    execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
+    execute_command = "sudo -E bash -c '{{ .Vars }} {{ .Path }}'"
     inline = [
       "set -euxo pipefail",
       "echo Installing base tools...",
@@ -110,7 +110,7 @@ build {
   # Docker
   # ----------------------
   provisioner "shell" {
-    execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
+    execute_command = "sudo -E bash -c '{{ .Vars }} {{ .Path }}'"
     inline = [
       "set -euxo pipefail",
       "echo Installing Docker...",
@@ -127,7 +127,7 @@ build {
   # CodeDeploy agent
   # ----------------------
   provisioner "shell" {
-    execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
+    execute_command = "sudo -E bash -c '{{ .Vars }} {{ .Path }}'"
     inline = [
       "set -euxo pipefail",
       "echo Installing Ruby (required for CodeDeploy)...",
@@ -149,7 +149,7 @@ build {
   # Backend configuration (ECR pull + validation)
   # ----------------------
   provisioner "shell" {
-    execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
+    execute_command = "sudo -E bash -c '{{ .Vars }} {{ .Path }}'"
     environment_vars = [
       "AWS_REGION=${var.aws_region}",
       "AWS_ACCOUNT_ID=${var.aws_account_id}",
