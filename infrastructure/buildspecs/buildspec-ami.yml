@@ -26,8 +26,7 @@ phases:
 
   build:
     commands:
-      - echo "=== Starting Packer Build ==="
-      - packer validate -var aws_region=${AWS_REGION} -var aws_account_id=${AWS_ACCOUNT_ID} -var project_name=${PROJECT_NAME} -var ecr_repo=${ECR_REPO} -var docker_image_tag=${IMAGE_TAG} -var instance_profile_name=${INSTANCE_PROFILE_NAME} -var vpc_id=${VPC_ID} -var subnet_id=${SUBNET_ID} backend-ami.pkr.hcl
+      - echo "=== Building AMI with Packer ==="
       - packer build -var aws_region=${AWS_REGION} -var aws_account_id=${AWS_ACCOUNT_ID} -var project_name=${PROJECT_NAME} -var ecr_repo=${ECR_REPO} -var docker_image_tag=${IMAGE_TAG} -var instance_profile_name=${INSTANCE_PROFILE_NAME} -var vpc_id=${VPC_ID} -var subnet_id=${SUBNET_ID} backend-ami.pkr.hcl 2>&1 | tee packer-output.log
       - exit ${PIPESTATUS[0]}
 
