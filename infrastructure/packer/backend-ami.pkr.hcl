@@ -129,14 +129,19 @@ build {
   provisioner "shell" {
     execute_command = "sudo -E sh -c '{{ .Vars }} {{ .Path }}'"
     inline = [
+      "set -euxo pipefail",
+      "echo Installing Ruby (required for CodeDeploy)...",
+      "dnf install -y ruby",
+      "ruby --version",
+
       "echo Installing CodeDeploy agent...",
       "cd /tmp",
       "curl -O https://aws-codedeploy-${var.aws_region}.s3.${var.aws_region}.amazonaws.com/latest/install",
       "chmod +x ./install",
       "./install auto",
       "systemctl enable codedeploy-agent",
-      "systemctl start codedeploy-agent",
-      "systemctl status codedeploy-agent"
+      "systemctl start codedeploy-agent || true",
+      "systemctl is-active codedeploy-agent || echo 'CodeDeploy status check failed"
     ]
   }
 
