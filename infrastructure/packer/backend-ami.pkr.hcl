@@ -115,7 +115,7 @@ build {
       "set -euxo pipefail",
       "echo Installing Docker...",
       "pwd",
-      "whoami'",
+      "whoami",
       "dnf install -y docker",
       "systemctl enable docker",
       "systemctl start docker",
@@ -141,7 +141,7 @@ build {
       "./install auto",
       "systemctl enable codedeploy-agent",
       "systemctl start codedeploy-agent || true",
-      "systemctl is-active codedeploy-agent || echo 'CodeDeploy status check failed"
+      "systemctl is-active codedeploy-agent || echo CodeDeploy status check failed"
     ]
   }
 
