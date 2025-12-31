@@ -10,7 +10,7 @@ phases:
   install:
     commands:
       - "echo Installing required tools..."
-      - "dnf install -y unzip jq awscli curl"
+      - "dnf install -y --allowerasing unzip jq awscli curl"
       - "curl -fsSL https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_64bit/session-manager-plugin.rpm -o ssm.rpm"
       - "rpm -i ssm.rpm || true"
       - "session-manager-plugin --version || true"
