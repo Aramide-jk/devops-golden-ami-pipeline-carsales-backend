@@ -114,8 +114,8 @@ build {
     inline = [
       "set -euxo pipefail",
       "echo Installing Docker...",
-      "echo 'Current directory: $(pwd)'",
-      "echo 'Running as user: $(whoami)'",
+      "pwd",
+      "whoami'",
       "dnf install -y docker",
       "systemctl enable docker",
       "systemctl start docker",
