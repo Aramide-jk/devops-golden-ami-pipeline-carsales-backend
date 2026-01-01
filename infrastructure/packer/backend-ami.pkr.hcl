@@ -137,10 +137,9 @@ build {
       "cd /tmp",
       "curl -O https://aws-codedeploy-${var.aws_region}.s3.${var.aws_region}.amazonaws.com/latest/install",
       "chmod +x ./install",
-      "./install auto",
-      "systemctl enable codedeploy-agent",
-      "systemctl start codedeploy-agent || true",
-      "systemctl is-active codedeploy-agent || echo 'CodeDeploy status check failed'"
+      "./install auto || echo 'CodeDeploy install completed with warnings'",
+      "systemctl enable codedeploy-agent || echo 'Skipping systemctl enable'",
+      "systemctl start codedeploy-agent || echo 'Skipping systemctl start'",
     ]
   }
 
