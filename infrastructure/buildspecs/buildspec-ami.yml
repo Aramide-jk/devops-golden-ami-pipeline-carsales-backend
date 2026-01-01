@@ -36,11 +36,11 @@ phases:
 
   post_build:
     commands:
-      - "cd ../.."
-      - "AMI_ID=$(grep -o 'ami-[a-z0-9]\\{17\\}' infrastructure/packer/packer-output.log | tail -1)"
-      - "if [ -z \"$AMI_ID\" ]; then echo ERROR: AMI not created; exit 1; fi"
-      - "printf '{\"amiId\":\"%s\",\"imageTag\":\"%s\"}' \"$AMI_ID\" \"$IMAGE_TAG\" > ami-info.json"
-      - "cat ami-info.json"
+      - AMI_ID=$(jq -r '.builds[0].artifact_id' infrastructure/packer/packer-manifest.json | cut -d':' -f2)
+      - echo "Extracted AMI ID from manifest: $AMI_ID"
+      - if [ -z "$AMI_ID" ]; then echo "ERROR: AMI not created"; exit 1; fi
+      - printf '{"amiId":"%s","imageTag":"%s"}' "$AMI_ID" "$IMAGE_TAG" > ami-info.json
+      - cat ami-info.json
 
 artifacts:
   files:
