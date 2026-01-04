@@ -16,8 +16,4 @@ phases:
   post_build:
     commands:
       - echo "Pushing Docker image to ECR..."
-<<<<<<< HEAD
       - docker push $ECR_URI:latest
-=======
-      - docker push $ECR_URI:latest
->>>>>>> de9b773719b62cb8bd5e083df5979dddb82e7332

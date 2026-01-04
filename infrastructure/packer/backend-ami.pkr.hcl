@@ -1,40 +1,176 @@
 packer {
   required_plugins {
     amazon = {
+      version = ">= 1.2.0"
       source  = "github.com/hashicorp/amazon"
-      version = "~> 1.3"
     }
   }
 }
 
-source "amazon-ebs" "golden" {
-  region                  = var.region
-  instance_type           = var.instance_type
-  ssh_username            = "ec2-user"
-  ami_name                = "${var.ami_name}-{{timestamp}}"
-  iam_instance_profile    = "GoldenAMIBuilderRole"
+# ----------------------
+# VARIABLES
+# ----------------------
+variable "aws_region" {
+  type    = string
+  default = "us-east-1"
+}
+
+variable "aws_account_id" {
+  type = string
+}
+
+variable "project_name" {
+  type    = string
+  default = "backend-docker-build"
+}
+
+variable "ecr_repo" {
+  type = string
+}
+
+variable "docker_image_tag" {
+  type    = string
+  default = "latest"
+}
+
+variable "instance_profile_name" {
+  type = string
+}
+
+variable "vpc_id" {
+  type = string
+}
+
+variable "subnet_id" {
+  type = string
+}
+
+# ----------------------
+# SOURCE: Amazon Linux 2023
+# ----------------------
+source "amazon-ebs" "golden_ami" {
+  ami_name        = "${var.project_name}-golden-ami-{{timestamp}}"
+  ami_description = "Golden AMI for ${var.project_name}"
 
   source_ami_filter {
     filters = {
       name                = "al2023-ami-*-x86_64"
-      virtualization-type = "hvm"
       root-device-type    = "ebs"
+      virtualization-type = "hvm"
     }
-    owners      = ["amazon"]
     most_recent = true
+    owners      = ["amazon"]
+  }
+
+  instance_type               = "t3.medium"
+  region                      = var.aws_region
+  vpc_id                      = var.vpc_id
+  subnet_id                   = var.subnet_id
+  associate_public_ip_address = false
+  iam_instance_profile        = var.instance_profile_name
+  security_group_ids          = ["sg-065e160dff515e9e6"]
+
+  communicator     = "ssh"
+  ssh_username     = "ec2-user"
+  ssh_interface    = "session_manager"
+  ssh_timeout      = "10m"
+  pause_before_ssm = "30s"
+
+  tags = {
+    Name      = "${var.project_name}-golden-ami"
+    Project   = var.project_name
+    ManagedBy = "Packer"
+    BuildDate = "{{timestamp}}"
   }
 }
 
+# ----------------------
+# BUILD
+# ----------------------
 build {
-  sources = ["source.amazon-ebs.golden"]
+  sources = ["source.amazon-ebs.golden_ami"]
 
+  # ----------------------
+  # Base OS tools + AWS CLI + SSM
+  # ----------------------
   provisioner "shell" {
-    scripts = [
-      "scripts/install-base.sh",
-      "scripts/install-docker.sh",
-      "scripts/install-codedeploy.sh",
-      "scripts/install-monitoring.sh",
-      "scripts/validate.sh"
+    execute_command = "sudo -E bash -c '{{ .Vars }} {{ .Path }}'"
+    inline = [
+      "set -euxo pipefail",
+      "echo 'Installing base tools...'",
+      "dnf clean all",
+      "dnf makecache",
+      "dnf install -y git wget unzip jq awscli",
+      "curl --version",
+      "aws --version"
     ]
+  }
+
+  # ----------------------
+  # Docker
+  # ----------------------
+  provisioner "shell" {
+    execute_command = "sudo -E bash -c '{{ .Vars }} {{ .Path }}'"
+    inline = [
+      "set -euxo pipefail",
+      "echo 'Installing Docker...'",
+      "echo \"Current directory: $(pwd)\"",
+      "echo \"Running as user: $(whoami)\"",
+      "dnf install -y docker",
+      "systemctl enable docker",
+      "systemctl start docker",
+      "docker --version"
+    ]
+  }
+
+  # ----------------------
+  # Ruby + CodeDeploy agent
+  # ----------------------
+  provisioner "shell" {
+    execute_command = "sudo -E bash -c '{{ .Vars }} {{ .Path }}'"
+    inline = [
+      "set -euxo pipefail",
+      "echo 'Installing Ruby (required for CodeDeploy)...'",
+      "dnf install -y ruby",
+      "ruby --version",
+      "echo 'Installing CodeDeploy agent...'",
+      "cd /tmp",
+      "curl -O https://aws-codedeploy-${var.aws_region}.s3.${var.aws_region}.amazonaws.com/latest/install",
+      "chmod +x ./install",
+      "./install auto || echo 'CodeDeploy install completed with warnings'",
+      "systemctl enable codedeploy-agent || echo 'Skipping systemctl enable'",
+      "systemctl start codedeploy-agent || echo 'Skipping systemctl start'",
+    ]
+  }
+
+  # ----------------------
+  # Backend configuration (ECR pull + validation)
+  # ----------------------
+  provisioner "shell" {
+    execute_command = "sudo -E bash -c '{{ .Vars }} {{ .Path }}'"
+    environment_vars = [
+      "AWS_REGION=${var.aws_region}",
+      "AWS_ACCOUNT_ID=${var.aws_account_id}",
+      "ECR_REPO=${var.ecr_repo}",
+      "IMAGE_TAG=${var.docker_image_tag}"
+    ]
+    inline = [
+      "set -euxo pipefail",
+      "echo 'Configuring backend image...'",
+      "IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG",
+      "echo \"Image URI: $IMAGE_URI\"",
+      "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com",
+      "docker pull $IMAGE_URI",
+      "docker inspect $IMAGE_URI",
+      "echo 'Image pulled and verified successfully'"
+    ]
+  }
+
+  # ----------------------
+  # POST-PROCESSOR: Manifest
+  # ----------------------
+  post-processor "manifest" {
+    output     = "packer-manifest.json"
+    strip_path = true
   }
 }

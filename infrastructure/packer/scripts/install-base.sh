@@ -1,10 +1,15 @@
 #!/bin/bash
-set -euo pipefail
+set -euxo pipefail
 
-dnf update -y
-dnf install -y curl unzip jq amazon-ssm-agent
+echo "========== Installing Base Packages =========="
 
-timedatectl set-timezone UTC
+sudo dnf update -y
+sudo dnf install -y wget curl git jq vim lsof
 
-systemctl enable amazon-ssm-agent
-systemctl start amazon-ssm-agent
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+rm -rf aws awscliv2.zip
+
+aws --version
+echo "✓ Base packages installed"
