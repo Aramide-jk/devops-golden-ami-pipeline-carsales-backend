@@ -1,23 +1,43 @@
 version: 0.2
 
+env:
+  variables:
+    AWS_DEFAULT_REGION: "us-east-1"
+    AWS_ACCOUNT_ID: "734649603753"
+    IMAGE_REPO_NAME: "backend-docker-build"
+
 phases:
   pre_build:
     commands:
+      - echo "=== Docker Build Started ==="
       - echo "Logging in to Amazon ECR..."
-      - aws --version
-      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_URI
-
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
+      - BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+      - echo "Build Info - Commit=${COMMIT_HASH}, Tag=${IMAGE_TAG}, Date=${BUILD_DATE}"
+      
   build:
     commands:
       - echo "Building Docker image..."
-      - docker build -t backend:latest .
-      - docker tag backend:latest $ECR_URI:latest
-
+      - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
+      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $IMAGE_REPO_NAME:latest
+      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+      - docker tag $IMAGE_REPO_NAME:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest
+      
   post_build:
     commands:
-      - echo "Pushing Docker image to ECR..."
-<<<<<<< HEAD
-      - docker push $ECR_URI:latest
-=======
-      - docker push $ECR_URI:latest
->>>>>>> de9b773719b62cb8bd5e083df5979dddb82e7332
+      - echo "Pushing to ECR..."
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest
+      - echo "Creating build metadata..."
+      - echo "{\"imageUri\":\"$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest\",\"imageTag\":\"$IMAGE_TAG\",\"commitHash\":\"$COMMIT_HASH\",\"buildDate\":\"$BUILD_DATE\",\"repository\":\"$IMAGE_REPO_NAME\"}" > build-metadata.json
+      - cat build-metadata.json
+      - echo "=== Docker Build Complete ==="
+
+artifacts:
+  files:
+    - appspec.yml
+    - scripts/**/*
+    - build-metadata.json
+  name: DockerBuildOutput
